@@ -1,3 +1,5 @@
+#pragma once
+
 #include "disp.h" /* include your own disp.h file (e.g. hw1)*/
 
 /* Camera defaults */
@@ -13,6 +15,34 @@
 
 #define	MATLEVELS	100		/* how many matrix pushes allowed */
 #define	MAX_LIGHTS	10		/* how many lights allowed */
+
+#define BB_MINX -5;
+#define BB_MAXX 5;
+#define BB_MINY -5;
+#define BB_MAXY 5;
+#define BB_MINZ -5;
+#define BB_MAXZ 5;
+
+struct CubeMap
+{
+	int xSize, ySize;
+	GzColor *posX;
+	GzColor *negX;
+	GzColor *posY;
+	GzColor *negY;
+	GzColor *posZ;
+	GzColor *negZ;
+};
+
+enum CUBEMAPSIDE
+{
+	LEFT,
+	RIGHT,
+	UP,
+	DOWN,
+	FRONT,
+	BACK
+};
 
 #ifndef GZRENDER
 #define GZRENDER
@@ -33,6 +63,7 @@ typedef struct {			/* define a renderer */
   GzColor		Ka, Kd, Ks;
   float		    spec;		/* specular power */
   GzTexture		tex_fun;    /* tex_fun(float u, float v, GzColor color) */
+  CubeMap		cmap;
 }  GzRender;
 #endif
 
@@ -134,3 +165,8 @@ void GzConcatMatrixNormal(GzRender *render, GzMatrix &res);
 float GzNewVz(float currZ);
 void GzXformToPerspective(const GzTextureIndex &texi, float Vz, GzTextureIndex &res);
 void GzXformToAffine(const GzTextureIndex &texi, float Vz, GzTextureIndex &res);
+
+//Final Project Added functions
+void LoadCubeMaps(GzRender *render);
+void GetCubeMapColor(GzRender *render, const GzCoord &normal, GzColor &color);
+void GetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v, GzColor &color);

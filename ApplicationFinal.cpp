@@ -22,7 +22,6 @@ static char THIS_FILE[]=__FILE__;
 #define INFILE  "ppot.asc"
 #define OUTFILE "output.ppm"
 
-
 extern int tex_fun(float u, float v, GzColor color); /* image texture function */
 extern int ptex_fun(float u, float v, GzColor color); /* procedural texture function */
 
@@ -116,7 +115,7 @@ GzMatrix	rotateY =
     camera.worldup[Y] = 1.0;
     camera.worldup[Z] = 0.0;
 
-    camera.FOV = 63.7;              /* degrees *              /* degrees */
+    camera.FOV = 63.7;              /* degrees */
 
 	status |= GzPutCamera(m_pRender, &camera); 
 #endif 

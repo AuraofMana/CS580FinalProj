@@ -8,8 +8,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 using std::copy;
+using std::string;
 
 #define GZDEGREETORADIAN(GzDegree) (GzDegree * 3.14159265 / 180.0)
 
@@ -222,8 +224,9 @@ int GzNewRender(GzRender **render, GzRenderClass renderClass, GzDisplay	*display
 	};
 	**render = tempRender;
 
-	return GZ_SUCCESS;
+	LoadCubeMaps(*render);
 
+	return GZ_SUCCESS;
 }
 
 
@@ -232,6 +235,12 @@ int GzFreeRender(GzRender *render)
 /* 
 -free all renderer resources
 */
+	free(render->cmap.posX);
+	free(render->cmap.negX);
+	free(render->cmap.posY);
+	free(render->cmap.negY);
+	free(render->cmap.posZ);
+	free(render->cmap.negZ);
 
 	delete render;
 	return GZ_SUCCESS;
@@ -253,7 +262,6 @@ int GzBeginRender(GzRender *render)
 	{
 		render->display->fbuf[i] = initPixel;
 	}
-
 
 	//Xiw
 	GzCoord cl;
@@ -995,6 +1003,8 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					currNormal[2] = currSpan.dataStart[2] * oneMinusRatio + currSpan.dataEnd[2] * currSpan.ratio;
 					GzNormalizeVector(currNormal, currNormal);
 
+					GetCubeMapColor(render, currNormal, texColor);
+
 					if(render->tex_fun != 0)
 					{
 						copy(&texColor[0], &texColor[0] + 3, &(render->Kd[0]));
@@ -1374,4 +1384,209 @@ void GzXformToAffine(const GzTextureIndex &texi, float Vz, GzTextureIndex &res)
 {
 	res[0] = texi[0] * (Vz + 1);
 	res[1] = texi[1] * (Vz + 1);
+}
+
+void LoadCubeMaps(GzRender *render)
+{
+	unsigned char pixel[3];
+	unsigned char dummy;
+	char foo[8];
+	FILE *fd;
+	GzColor *image;
+
+	for(int i = 0; i < 6; ++i)
+	{
+		string filePath = "CubeMapping\\";
+		switch(i)
+		{
+		case 0:
+			{
+				image = render->cmap.posX;
+				filePath += "posx.ppm";
+				break;
+			}
+		case 1:
+			{
+				image = render->cmap.negX;
+				filePath += "negx.ppm";
+				break;
+			}
+		case 2:
+			{
+				image = render->cmap.posY;
+				filePath += "posy.ppm";
+				break;
+			}
+		case 3:
+			{
+				image = render->cmap.negY;
+				filePath += "negy.ppm";
+				break;
+			}
+		case 4:
+			{
+				image = render->cmap.posZ;
+				filePath += "posz.ppm";
+				break;
+			}
+		case 5:
+			{
+				image = render->cmap.negZ;
+				filePath += "negz.ppm";
+				break;
+			}
+		}
+		fd = fopen(filePath.c_str(), "rb");
+		if(fd == NULL)
+		{
+			fprintf(stderr, "texture file not found\n");
+			exit(-1);
+		}
+		fscanf(fd, "%s %d %d %c", foo, &render->cmap.xSize, &render->cmap.ySize, &dummy);
+		image = (GzColor*)malloc(sizeof(GzColor) * (render->cmap.xSize + 1) * (render->cmap.ySize + 1));
+		if(image == NULL)
+		{
+			fprintf(stderr, "malloc for texture image failed\n");
+			exit(-1);
+		}
+
+		for(int j = 0; j < render->cmap.xSize * render->cmap.ySize; ++j) /* create array of GzColor values */
+		{
+			fread(pixel, sizeof(pixel), 1, fd);
+			image[j][RED] = (float)((int)pixel[RED]) * (1.0 / 255.0);
+			image[j][GREEN] = (float)((int)pixel[GREEN]) * (1.0 / 255.0);
+			image[j][BLUE] = (float)((int)pixel[BLUE]) * (1.0 / 255.0);
+		}
+
+		fclose(fd);
+	}
+}
+
+void GetCubeMapColor(GzRender *render, const GzCoord &normal, GzColor &color)
+{
+	if((fabsf(normal[0]) >= fabsf(normal[1])) && (fabsf(normal[0]) >= fabsf(normal[2])))
+	{
+		if(normal[0] > 0.0f)
+		{
+			GetCubeMapTexture(render, CUBEMAPSIDE::RIGHT, 1.0f - (normal[2] / normal[0] + 1.0f) * 0.5f, (normal[1] / normal[0] + 1.0f) * 0.5f, color);
+		}
+		else if(normal[0] < 0.0f)
+		{
+			GetCubeMapTexture(render, CUBEMAPSIDE::LEFT, 1.0f - (normal[2] / normal[0] + 1.0f) * 0.5f, 1.0f - (normal[1] / normal[0] + 1.0f) * 0.5f, color);
+		}
+	}
+	else if ((fabsf(normal[1]) >= fabsf(normal[0])) && (fabsf(normal[1]) >= fabsf(normal[2])))
+	{
+		if(normal[1] > 0.0f)
+		{
+			GetCubeMapTexture(render, CUBEMAPSIDE::UP, (normal[0] / normal[1] + 1.0f) * 0.5f, 1.0f - (normal[2]/ normal[1] + 1.0f) * 0.5f, color);
+		}
+		else if(normal[1] < 0.0f)
+		{
+			GetCubeMapTexture(render, CUBEMAPSIDE::DOWN, 1.0f - (normal[0] / normal[1] + 1.0f) * 0.5f, (normal[2]/normal[1] + 1.0f) * 0.5f, color);
+		}
+	}
+	else if((fabsf(normal[2]) >= fabsf(normal[0])) && (fabsf(normal[2]) >= fabsf(normal[1])))
+	{
+		if(normal[2] > 0.0f)
+		{
+			GetCubeMapTexture(render, CUBEMAPSIDE::FRONT, (normal[0] / normal[2] + 1.0f) * 0.5f, (normal[1]/normal[2] + 1.0f) * 0.5f, color);
+		}
+		else if(normal[2] < 0.0f)
+		{
+			GetCubeMapTexture(render, CUBEMAPSIDE::BACK, (normal[0] / normal[2] + 1.0f) * 0.5f, 1.0f - (normal[1] /normal[2]+1) * 0.5f, color);
+		}
+	}
+}
+
+void GetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v, GzColor &color)
+{
+	GzColor *cmPtr;
+	switch(cmEnum)
+	{
+	case CUBEMAPSIDE::LEFT:
+		{
+			cmPtr = render->cmap.negX;
+			break;
+		}
+	case CUBEMAPSIDE::RIGHT:
+		{
+			cmPtr = render->cmap.posX;
+			break;
+		}
+	case CUBEMAPSIDE::UP:
+		{
+			cmPtr = render->cmap.posY;
+			break;
+		}
+	case CUBEMAPSIDE::DOWN:
+		{
+			cmPtr = render->cmap.negY;
+			break;
+		}
+	case CUBEMAPSIDE::FRONT:
+		{
+			cmPtr = render->cmap.negZ;
+			break;
+		}
+	case CUBEMAPSIDE::BACK:
+		{
+			cmPtr = render->cmap.posZ;
+			break;
+		}
+	}
+
+	if(u < 0.0f) u = 0.0f;
+	if(v < 0.0f) v = 0.0f;
+	if(u > 1.0f) u = 1.0f;
+	if(v > 1.0f) v = 1.0f;
+
+	int u0 = u * (render->cmap.xSize - 1);
+	int v0 = v * (render->cmap.ySize - 1);
+
+	int u1, v1;
+
+	if(u0 == render->cmap.xSize - 1) u1 = u0 - 1;
+	else u1 = u0 + 1;
+	if(v0 == render->cmap.ySize - 1) v1 = v0 - 1;
+	else v1 = v0 + 1;
+
+	float s = (u * (render->cmap.xSize - 1)) - float(u0);
+	float t = (v * (render->cmap.ySize - 1)) - float(v0);
+
+	GzColor *topLeft, *topRight, *bottomRight, *bottomLeft;
+	topLeft = &cmPtr[v0 * render->cmap.xSize + u0];
+	topRight = &cmPtr[v0 * render->cmap.xSize + u1];
+	bottomRight = &cmPtr[v1 * render->cmap.xSize + u1];
+	bottomLeft = &cmPtr[v1 * render->cmap.xSize + u0];
+
+	float topLeftRatio = (1 - s) * (1 - t);
+	float topRightRatio = s * (1 - t);
+	float bottomRightRatio = s * t;
+	float bottomLeftRatio = (1 - s) * t;
+
+	color[0] = bottomRightRatio * (*bottomRight)[0] + bottomLeftRatio * (*bottomLeft)[0] + topRightRatio * (*topRight)[0] + topLeftRatio * (*topLeft)[0];
+	color[1] = bottomRightRatio * (*bottomRight)[1] + bottomLeftRatio * (*bottomLeft)[1] + topRightRatio * (*topRight)[1] + topLeftRatio * (*topLeft)[1];
+	color[2] = bottomRightRatio * (*bottomRight)[2] + bottomLeftRatio * (*bottomLeft)[2] + topRightRatio * (*topRight)[2] + topLeftRatio * (*topLeft)[2];
+
+	/*
+	u = fabsf(u);
+	v = fabsf(v);
+	int umin = int(render->cmap.xSize * u);
+	int vmin = int(render->cmap.ySize * v);
+	int umax = int(render->cmap.xSize * u) + 1;
+	int vmax = int(render->cmap.ySize * v) + 1;
+	float ucoef = fabsf(render->cmap.xSize * u - umin);
+	float vcoef = fabsf(render->cmap.ySize * v - vmin);
+
+	umin = min(max(umin, 0), render->cmap.xSize - 1);
+	umax = min(max(umax, 0), render->cmap.xSize - 1);
+	vmin = min(max(vmin, 0), render->cmap.ySize - 1);
+	vmax = min(max(vmax, 0), render->cmap.ySize - 1);
+
+	// What follows is a bilinear interpolation
+	// along two coordinates u and v.
+
+	color output = (1.0f - vcoef) * ((1.0f - ucoef) * tab[umin  + sizeU * vmin] + ucoef * tab[umax + sizeU * vmin]) +   vcoef * ((1.0f - ucoef) * tab[umin  + sizeU * vmax] + ucoef * tab[umax + sizeU * vmax]);
+	*/
 }

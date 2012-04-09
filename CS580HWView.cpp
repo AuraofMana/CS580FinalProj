@@ -100,7 +100,7 @@ void CCS580HWView::OnRender()
 
 	// Call renderer 
 
-	// Application 5
+	// Application Final
 	if(m_pApplication != NULL)
 		((ApplicationFinal *)m_pApplication)->Render();
 	else 
