@@ -224,8 +224,11 @@ int GzNewRender(GzRender **render, GzRenderClass renderClass, GzDisplay	*display
 		DEFAULT_SPEC, 
 		0
 	};
-	tempRender.leftCamera = tempRender.rightCamera = tempRender.camera;
 	**render = tempRender;
+
+	//Copy over regular camera into left and right camera
+	GzCopyCamera((*render)->camera, (*render)->leftCamera);
+	GzCopyCamera((*render)->camera, (*render)->rightCamera);
 
 	//Allocate and Initialize the left and right displays
 	GzNewDisplay(&((*render)->display[STEREOLEFT]), GZ_RGBAZ_DISPLAY, (*render)->display[ACTUALDISPLAY]->xres, (*render)->display[ACTUALDISPLAY]->yres);
@@ -310,6 +313,11 @@ int GzBeginRender(GzRender *render)
 	render->camera.Xpi[3][3] = 1.0;
 
 
+	//Copy over regular camera into left and right camera
+	GzCopyCamera(render->camera, render->leftCamera);
+	GzCopyCamera(render->camera, render->rightCamera);
+
+
 	//init Ximage - put Xsp at base of stack, push on Xpi and Xiw 
 	int status = 0;
 	
@@ -336,6 +344,9 @@ int GzPutCamera(GzRender *render, GzCamera *camera)
 
 	render->Xsp[2][2] = INT_MAX * (float) tan(GZDEGREETORADIAN(render->camera.FOV / 2.0));
 
+	//Copy over into left and right camera as well
+	GzCopyCamera(*camera, render->leftCamera);
+	GzCopyCamera(*camera, render->rightCamera);
 	return GZ_SUCCESS;
 }
 
@@ -1555,6 +1566,16 @@ void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v,
 
 	color output = (1.0f - vcoef) * ((1.0f - ucoef) * tab[umin  + sizeU * vmin] + ucoef * tab[umax + sizeU * vmin]) +   vcoef * ((1.0f - ucoef) * tab[umin  + sizeU * vmax] + ucoef * tab[umax + sizeU * vmax]);
 	*/
+}
+
+void GzCopyCamera(const GzCamera &cameraSrc, GzCamera &cameraDest)
+{
+	copy(&cameraSrc.Xiw[0][0], &cameraSrc.Xiw[0][0] + 16, &cameraDest.Xiw[0][0]);
+	copy(&cameraSrc.Xpi[0][0], &cameraSrc.Xpi[0][0] + 16, &cameraDest.Xpi[0][0]);
+	copy(&cameraSrc.position[0], &cameraSrc.position[0] + 3, &cameraDest.position[0]);
+	copy(&cameraSrc.lookat[0], &cameraSrc.lookat[0] + 3, &cameraDest.lookat[0]);
+	copy(&cameraSrc.worldup[0], &cameraSrc.worldup[0] + 3, &cameraDest.worldup[0]);
+	cameraDest.FOV = cameraSrc.FOV;
 }
 
 void GzLoadXiw(GzCamera &camera)

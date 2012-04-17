@@ -178,6 +178,7 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &normal, GzColor &color);
 void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v, GzColor &color);
 
 //Stereoscopic 3D
+void GzCopyCamera(const GzCamera &cameraSrc, GzCamera &cameraDest);
 void GzLoadXiw(GzCamera &camera);
 void GzStereoInit(GzRender *render, const GzCoord &leftPos, const GzCoord &rightPos);
 void GzInsertXiw(GzRender *render, GzMatrix matrix);
