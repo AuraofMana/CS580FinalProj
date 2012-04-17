@@ -23,6 +23,11 @@
 #define BB_MINZ -5;
 #define BB_MAXZ 5;
 
+//Stereo Camera Display Index defines
+#define ACTUALDISPLAY 0
+#define STEREOLEFT 1
+#define STEREORIGHT 2
+
 struct CubeMap
 {
 	int xSize, ySize;
@@ -48,9 +53,9 @@ enum CUBEMAPSIDE
 #define GZRENDER
 typedef struct {			/* define a renderer */
   GzRenderClass	renderClass;
-  GzDisplay		*display;
+  GzDisplay		*display[3]; //Actual display + left and right display
   short		    open;
-  GzCamera		camera;
+  GzCamera		camera, leftCamera, rightCamera;
   short		    matlevel;	        /* top of stack - current xform */
   GzMatrix		Ximage[MATLEVELS];	/* stack of xforms (Xsm) */
   GzMatrix		Xnorm[MATLEVELS];	/* xforms for norms (Xim) */
@@ -167,6 +172,15 @@ void GzXformToPerspective(const GzTextureIndex &texi, float Vz, GzTextureIndex &
 void GzXformToAffine(const GzTextureIndex &texi, float Vz, GzTextureIndex &res);
 
 //Final Project Added functions
-void LoadCubeMaps(GzRender *render);
-void GetCubeMapColor(GzRender *render, const GzCoord &normal, GzColor &color);
-void GetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v, GzColor &color);
+//Cube Mapping
+void GzLoadCubeMaps(GzRender *render);
+void GzGetCubeMapColor(GzRender *render, const GzCoord &normal, GzColor &color);
+void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v, GzColor &color);
+
+//Stereoscopic 3D
+void GzLoadXiw(GzCamera &camera);
+void GzStereoInit(GzRender *render, const GzCoord &leftPos, const GzCoord &rightPos);
+void GzInsertXiw(GzRender *render, GzMatrix matrix);
+int GzStereoPutTriangle(GzRender *render, int numParts, GzToken *nameList, GzPointer *valueList);
+int GzStereoPutTriangleHelper(GzRender *render, GzCoord vertices[3], GzCoord normals[3], GzTextureIndex textures[3], bool leftCamera);
+void GzCombineDisplays(GzRender *render);

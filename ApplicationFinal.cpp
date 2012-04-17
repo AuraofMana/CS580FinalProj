@@ -50,7 +50,7 @@ int ApplicationFinal::Initialize()
 	GzPointer   valueListShader[9];		/* shader attribute pointers */
 	GzToken     nameListLights[10];		/* light info */
 	GzPointer   valueListLights[10];
-	int			shaderType, interpStyle;
+	int			interpStyle;
 	float		specpower;
 	int		status; 
  
@@ -80,42 +80,42 @@ int ApplicationFinal::Initialize()
 /* Translation matrix */
 GzMatrix	scale = 
 { 
-	3.25,	0.0,	0.0,	0.0, 
-	0.0,	3.25,	0.0,	-3.25, 
-	0.0,	0.0,	3.25,	3.5, 
-	0.0,	0.0,	0.0,	1.0 
+	3.25f,	0.0f,	0.0f,	0.0f, 
+	0.0f,	3.25f,	0.0f,	-3.25f, 
+	0.0f,	0.0f,	3.25f,	3.5f, 
+	0.0f,	0.0f,	0.0f,	1.0f 
 }; 
  
 GzMatrix	rotateX = 
 { 
-	1.0,	0.0,	0.0,	0.0, 
-	0.0,	.7071,	.7071,	0.0, 
-	0.0,	-.7071,	.7071,	0.0, 
-	0.0,	0.0,	0.0,	1.0 
+	1.0f,	0.0f,	0.0f,	0.0f, 
+	0.0f,	.7071f,	.7071f,	0.0f, 
+	0.0f,	-.7071f,	.7071f,	0.0f, 
+	0.0f,	0.0f,	0.0f,	1.0f 
 }; 
  
 GzMatrix	rotateY = 
 { 
-	.866,	0.0,	-0.5,	0.0, 
-	0.0,	1.0,	0.0,	0.0, 
-	0.5,	0.0,	.866,	0.0, 
-	0.0,	0.0,	0.0,	1.0 
+	.866f,	0.0f,	-0.5f,	0.0f, 
+	0.0f,	1.0f,	0.0f,	0.0f, 
+	0.5f,	0.0f,	.866f,	0.0f, 
+	0.0f,	0.0f,	0.0f,	1.0f 
 }; 
 
 #if 1 	/* set up app-defined camera if desired, else use camera defaults */
-    camera.position[X] = -3;
-    camera.position[Y] = -25;
-    camera.position[Z] = -4;
+    camera.position[X] = -3.0f;
+    camera.position[Y] = -25.0f;
+    camera.position[Z] = -4.0f;
 
-    camera.lookat[X] = 7.8;
-    camera.lookat[Y] = 0.7;
-    camera.lookat[Z] = 6.5;
+    camera.lookat[X] = 7.8f;
+    camera.lookat[Y] = 0.7f;
+    camera.lookat[Z] = 6.5f;
 
-    camera.worldup[X] = -0.2;
-    camera.worldup[Y] = 1.0;
-    camera.worldup[Z] = 0.0;
+    camera.worldup[X] = -0.2f;
+    camera.worldup[Y] = 1.0f;
+    camera.worldup[Z] = 0.0f;
 
-    camera.FOV = 63.7;              /* degrees */
+    camera.FOV = 63.7f;              /* degrees */
 
 	status |= GzPutCamera(m_pRender, &camera); 
 #endif 
@@ -124,15 +124,15 @@ GzMatrix	rotateY =
 	status |= GzBeginRender(m_pRender);
 
 	/* Light */
-	GzLight	light1 = { {-0.7071, 0.7071, 0}, {0.5, 0.5, 0.9} };
-	GzLight	light2 = { {0, -0.7071, -0.7071}, {0.9, 0.2, 0.3} };
-	GzLight	light3 = { {0.7071, 0.0, -0.7071}, {0.2, 0.7, 0.3} };
-	GzLight	ambientlight = { {0, 0, 0}, {0.3, 0.3, 0.3} };
+	GzLight	light1 = { {-0.7071f, 0.7071f, 0.0f}, {0.5f, 0.5f, 0.9f} };
+	GzLight	light2 = { {0.0f, -0.7071f, -0.7071f}, {0.9f, 0.2f, 0.3f} };
+	GzLight	light3 = { {0.7071f, 0.0f, -0.7071f}, {0.2f, 0.7f, 0.3f} };
+	GzLight	ambientlight = { {0.0f, 0.0f, 0.0f}, {0.3f, 0.3f, 0.3f} };
 
 	/* Material property */
-	GzColor specularCoefficient = { 0.3, 0.3, 0.3 };
-	GzColor ambientCoefficient = { 0.1, 0.1, 0.1 };
-	GzColor diffuseCoefficient = {0.7, 0.7, 0.7};
+	GzColor specularCoefficient = { 0.3f, 0.3f, 0.3f };
+	GzColor ambientCoefficient = { 0.1f, 0.1f, 0.1f };
+	GzColor diffuseCoefficient = {0.7f, 0.7f, 0.7f};
 
 /* 
   renderer is ready for frame --- define lights and shader at start of frame 
