@@ -174,7 +174,7 @@ void GzXformToAffine(const GzTextureIndex &texi, float Vz, GzTextureIndex &res);
 //Final Project Added functions
 //Cube Mapping
 void GzLoadCubeMaps(GzRender *render);
-void GzGetCubeMapColor(GzRender *render, const GzCoord &normal, GzColor &color);
+void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &normal, GzColor &color);
 void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v, GzColor &color);
 
 //Stereoscopic 3D

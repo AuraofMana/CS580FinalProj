@@ -102,7 +102,7 @@ GzMatrix	rotateY =
 	0.0f,	0.0f,	0.0f,	1.0f 
 }; 
 
-#if 1 	/* set up app-defined camera if desired, else use camera defaults */
+#if 0 	/* set up app-defined camera if desired, else use camera defaults */
     camera.position[X] = -3.0f;
     camera.position[Y] = -25.0f;
     camera.position[Z] = -4.0f;
@@ -115,7 +115,9 @@ GzMatrix	rotateY =
     camera.worldup[Y] = 1.0f;
     camera.worldup[Z] = 0.0f;
 
-    camera.FOV = 63.7f;              /* degrees */
+    camera.FOV = 63.7f; /* degrees */
+
+	GzCalculateCameraRay(camera);
 
 	status |= GzPutCamera(m_pRender, &camera); 
 #endif 
@@ -255,7 +257,7 @@ int ApplicationFinal::Render()
 		&(vertexList[2][2]), 
 		&(normalList[2][0]), &(normalList[2][1]), 	
 		&(normalList[2][2]), 
-		&(uvList[2][0]), &(uvList[2][1]) ); 
+		&(uvList[2][0]), &(uvList[2][1])); 
 
 	    /* 
 	     * Set the value pointers to the first vertex of the 	
@@ -265,7 +267,7 @@ int ApplicationFinal::Render()
 	     valueListTriangle[0] = (GzPointer)vertexList; 
 		 valueListTriangle[1] = (GzPointer)normalList; 
 		 valueListTriangle[2] = (GzPointer)uvList; 
-		 //GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
+		 GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
 		 GzStereoPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
 	}
 

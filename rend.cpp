@@ -973,14 +973,12 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				}
 				else if(render->interp_mode == GZ_NORMAL)
 				{
-					GzCoord currNormal = {0.0};
+					GzCoord currNormal = {0.0f};
 
 					currNormal[0] = currSpan.dataStart[0] * oneMinusRatio + currSpan.dataEnd[0] * currSpan.ratio;
 					currNormal[1] = currSpan.dataStart[1] * oneMinusRatio + currSpan.dataEnd[1] * currSpan.ratio;
 					currNormal[2] = currSpan.dataStart[2] * oneMinusRatio + currSpan.dataEnd[2] * currSpan.ratio;
 					GzNormalizeVector(currNormal, currNormal);
-
-					//GetCubeMapColor(render, currNormal, texColor);
 
 					if(render->tex_fun != 0)
 					{
@@ -989,6 +987,13 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					}
 
 					GzCalculateColor(render, currNormal, currColor, false);
+
+					GzCoord currVertex = {0.0f};
+					currVertex[0] = currSpan.current[0];
+					currVertex[1] = leftEdge->current[1];
+					currVertex[2] = currSpan.current[1];
+
+					//GzGetCubeMapColor(render, currVertex, currNormal, currColor);
 					GzPutDisplay(render->display[ACTUALDISPLAY], (int) currSpan.current[0], (int) leftEdge->current[1], ctoi(currColor[0]), ctoi(currColor[1]), ctoi(currColor[2]), a, (GzDepth) currSpan.current[1]);
 				}
 				else
@@ -1369,7 +1374,7 @@ void GzLoadCubeMaps(GzRender *render)
 	unsigned char dummy;
 	char foo[8];
 	FILE *fd;
-	GzColor *image;
+	GzColor **image;
 
 	for(int i = 0; i < 6; ++i)
 	{
@@ -1378,38 +1383,38 @@ void GzLoadCubeMaps(GzRender *render)
 		{
 		case 0:
 			{
-				image = render->cmap.posX;
-				filePath += "posx.ppm";
+				image = &(render->cmap.posX);
+				filePath += "1posx.ppm";
 				break;
 			}
 		case 1:
 			{
-				image = render->cmap.negX;
-				filePath += "negx.ppm";
+				image = &(render->cmap.negX);
+				filePath += "1negx.ppm";
 				break;
 			}
 		case 2:
 			{
-				image = render->cmap.posY;
-				filePath += "posy.ppm";
+				image = &(render->cmap.posY);
+				filePath += "1posy.ppm";
 				break;
 			}
 		case 3:
 			{
-				image = render->cmap.negY;
-				filePath += "negy.ppm";
+				image = &(render->cmap.negY);
+				filePath += "1negy.ppm";
 				break;
 			}
 		case 4:
 			{
-				image = render->cmap.posZ;
-				filePath += "posz.ppm";
+				image = &(render->cmap.posZ);
+				filePath += "1posz.ppm";
 				break;
 			}
 		case 5:
 			{
-				image = render->cmap.negZ;
-				filePath += "negz.ppm";
+				image = &(render->cmap.negZ);
+				filePath += "1negz.ppm";
 				break;
 			}
 		}
@@ -1420,8 +1425,8 @@ void GzLoadCubeMaps(GzRender *render)
 			exit(-1);
 		}
 		fscanf(fd, "%s %d %d %c", foo, &render->cmap.xSize, &render->cmap.ySize, &dummy);
-		image = (GzColor*)malloc(sizeof(GzColor) * (render->cmap.xSize + 1) * (render->cmap.ySize + 1));
-		if(image == NULL)
+		*image = (GzColor*)malloc(sizeof(GzColor) * (render->cmap.xSize + 1) * (render->cmap.ySize + 1));
+		if(*image == NULL)
 		{
 			fprintf(stderr, "malloc for texture image failed\n");
 			exit(-1);
@@ -1430,48 +1435,84 @@ void GzLoadCubeMaps(GzRender *render)
 		for(int j = 0; j < render->cmap.xSize * render->cmap.ySize; ++j) /* create array of GzColor values */
 		{
 			fread(pixel, sizeof(pixel), 1, fd);
-			image[j][RED] = (float)((int)pixel[RED]) * (1.0f/ 255.0);
-			image[j][GREEN] = (float)((int)pixel[GREEN]) * (1.0f / 255.0);
-			image[j][BLUE] = (float)((int)pixel[BLUE]) * (1.0f / 255.0);
+			(*image)[j][RED] = (float)((int)pixel[RED]) * (1.0f / 255.0f);
+			(*image)[j][GREEN] = (float)((int)pixel[GREEN]) * (1.0f / 255.0f);
+			(*image)[j][BLUE] = (float)((int)pixel[BLUE]) * (1.0f / 255.0f);
 		}
 
 		fclose(fd);
 	}
 }
 
-void GzGetCubeMapColor(GzRender *render, const GzCoord &normal, GzColor &color)
+void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &normal, GzColor &color)
 {
-	if((fabsf(normal[0]) >= fabsf(normal[1])) && (fabsf(normal[0]) >= fabsf(normal[2])))
+	GzCoord cameraRay;
+	GzSubtractVector(vertex, render->camera.position, cameraRay);
+
+	float NdotI = GzDotProduct(cameraRay, normal);
+	GzCoord TwoNtimesNdotI;
+	GzMultiplyVector(normal, 2 * NdotI, TwoNtimesNdotI);
+	
+	GzCoord reflectedRay;
+	GzSubtractVector(cameraRay, TwoNtimesNdotI, reflectedRay);
+
+	float absX = fabs(reflectedRay[0]);
+	float absY = fabs(reflectedRay[1]);
+	float absZ = fabs(reflectedRay[2]);
+
+	float u, v;
+	if(absX > absY && absX > absZ) //X is largest
 	{
-		if(normal[0] > 0.0f)
+		u = reflectedRay[2] / absX;
+		v = reflectedRay[1] / absX;
+		if(reflectedRay[0] < 0) //Left face
 		{
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::RIGHT, 1.0f - (normal[2] / normal[0] + 1.0f) * 0.5f, (normal[1] / normal[0] + 1.0f) * 0.5f, color);
+			++u; u /= 2.0f;
+			++v; v /= 2.0f;
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::LEFT, u, v, color);
 		}
-		else if(normal[0] < 0.0f)
+		else //Right face
 		{
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::LEFT, 1.0f - (normal[2] / normal[0] + 1.0f) * 0.5f, 1.0f - (normal[1] / normal[0] + 1.0f) * 0.5f, color);
+			u = -u;
+			++u; u /= 2.0f;
+			++v; v /= 2.0f;
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::RIGHT, u, v, color);
 		}
 	}
-	else if ((fabsf(normal[1]) >= fabsf(normal[0])) && (fabsf(normal[1]) >= fabsf(normal[2])))
+	else if(absY > absX && absY > absZ) //Y is largest
 	{
-		if(normal[1] > 0.0f)
+		u = reflectedRay[0] / absY;
+		v = reflectedRay[2] / absY;
+		if(reflectedRay[1] < 0) //Bottom face
 		{
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::UP, (normal[0] / normal[1] + 1.0f) * 0.5f, 1.0f - (normal[2]/ normal[1] + 1.0f) * 0.5f, color);
+			++u; u /= 2.0f;
+			++v; v /= 2.0f;
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::DOWN, u, v, color);
 		}
-		else if(normal[1] < 0.0f)
+		else //Top face
 		{
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::DOWN, 1.0f - (normal[0] / normal[1] + 1.0f) * 0.5f, (normal[2]/normal[1] + 1.0f) * 0.5f, color);
+			v = -v;
+			++u; u /= 2.0f;
+			++v; v /= 2.0f;
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::UP, u, v, color);
 		}
 	}
-	else if((fabsf(normal[2]) >= fabsf(normal[0])) && (fabsf(normal[2]) >= fabsf(normal[1])))
+	else //Z is largest
 	{
-		if(normal[2] > 0.0f)
+		u = reflectedRay[0] / absZ;
+		v = reflectedRay[1] / absZ;
+		if(reflectedRay[2] < 0) //Front face
 		{
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::FRONT, (normal[0] / normal[2] + 1.0f) * 0.5f, (normal[1]/normal[2] + 1.0f) * 0.5f, color);
+			u = -u;
+			++u; u /= 2.0f;
+			++v; v /= 2.0f;
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::FRONT, u, v, color);
 		}
-		else if(normal[2] < 0.0f)
+		else //Back face
 		{
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::BACK, (normal[0] / normal[2] + 1.0f) * 0.5f, 1.0f - (normal[1] /normal[2]+1) * 0.5f, color);
+			++u; u /= 2.0f;
+			++v; v /= 2.0f;
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::BACK, u, v, color);
 		}
 	}
 }
@@ -1545,27 +1586,6 @@ void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v,
 	color[0] = bottomRightRatio * (*bottomRight)[0] + bottomLeftRatio * (*bottomLeft)[0] + topRightRatio * (*topRight)[0] + topLeftRatio * (*topLeft)[0];
 	color[1] = bottomRightRatio * (*bottomRight)[1] + bottomLeftRatio * (*bottomLeft)[1] + topRightRatio * (*topRight)[1] + topLeftRatio * (*topLeft)[1];
 	color[2] = bottomRightRatio * (*bottomRight)[2] + bottomLeftRatio * (*bottomLeft)[2] + topRightRatio * (*topRight)[2] + topLeftRatio * (*topLeft)[2];
-
-	/*
-	u = fabsf(u);
-	v = fabsf(v);
-	int umin = int(render->cmap.xSize * u);
-	int vmin = int(render->cmap.ySize * v);
-	int umax = int(render->cmap.xSize * u) + 1;
-	int vmax = int(render->cmap.ySize * v) + 1;
-	float ucoef = fabsf(render->cmap.xSize * u - umin);
-	float vcoef = fabsf(render->cmap.ySize * v - vmin);
-
-	umin = min(max(umin, 0), render->cmap.xSize - 1);
-	umax = min(max(umax, 0), render->cmap.xSize - 1);
-	vmin = min(max(vmin, 0), render->cmap.ySize - 1);
-	vmax = min(max(vmax, 0), render->cmap.ySize - 1);
-
-	// What follows is a bilinear interpolation
-	// along two coordinates u and v.
-
-	color output = (1.0f - vcoef) * ((1.0f - ucoef) * tab[umin  + sizeU * vmin] + ucoef * tab[umax + sizeU * vmin]) +   vcoef * ((1.0f - ucoef) * tab[umin  + sizeU * vmax] + ucoef * tab[umax + sizeU * vmax]);
-	*/
 }
 
 void GzCopyCamera(const GzCamera &cameraSrc, GzCamera &cameraDest)
