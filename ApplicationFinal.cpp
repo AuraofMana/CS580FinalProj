@@ -268,10 +268,10 @@ int ApplicationFinal::Render()
 		 valueListTriangle[1] = (GzPointer)normalList; 
 		 valueListTriangle[2] = (GzPointer)uvList; 
 		 GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
-		 GzStereoPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
+		 //GzStereoPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
 	}
 
-	GzCombineDisplays(m_pRender);
+	//GzCombineDisplays(m_pRender);
 
 	GzFlushDisplay2File(outfile, m_pDisplay); 	/* write out or update display to file*/
 	GzFlushDisplay2FrameBuffer(m_pFrameBuffer, m_pDisplay);	// write out or update display to frame buffer
