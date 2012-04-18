@@ -183,9 +183,11 @@ GzMatrix	rotateY =
         status |= GzPutAttribute(m_pRender, 6, nameListShader, valueListShader);
 
 
-	status |= GzPushMatrix(m_pRender, scale);  
-	status |= GzPushMatrix(m_pRender, rotateY); 
-	status |= GzPushMatrix(m_pRender, rotateX); 
+	status |= GzPushMatrix(m_pRender, scale);
+	status |= GzPushMatrix(m_pRender, rotateY);
+	status |= GzPushMatrix(m_pRender, rotateX);
+
+	GzStereoInit(m_pRender);
 
 	if (status) exit(GZ_FAILURE); 
 
@@ -263,8 +265,11 @@ int ApplicationFinal::Render()
 	     valueListTriangle[0] = (GzPointer)vertexList; 
 		 valueListTriangle[1] = (GzPointer)normalList; 
 		 valueListTriangle[2] = (GzPointer)uvList; 
-		 GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle); 
-	} 
+		 //GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
+		 GzStereoPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
+	}
+
+	GzCombineDisplays(m_pRender);
 
 	GzFlushDisplay2File(outfile, m_pDisplay); 	/* write out or update display to file*/
 	GzFlushDisplay2FrameBuffer(m_pFrameBuffer, m_pDisplay);	// write out or update display to frame buffer

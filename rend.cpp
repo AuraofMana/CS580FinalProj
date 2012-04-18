@@ -1637,10 +1637,12 @@ void GzLoadXiw(GzCamera &camera)
 	camera.Xiw[3][3] = 1.0;
 }
 
-void GzStereoInit(GzRender *render, const GzCoord &leftPos, const GzCoord &rightPos)
+void GzStereoInit(GzRender *render)
 {
-	copy(&leftPos[0], &leftPos[0] + 3, &render->leftCamera.position[0]);
-	copy(&rightPos[0], &rightPos[0] + 3, &render->rightCamera.position[0]);
+	render->leftCamera.position[0] -= 0.5;
+	render->leftCamera.lookat[0] -= 0.5;
+	render->rightCamera.position[0] += 0.5;
+	render->rightCamera.lookat[0] += 0.5;
 
 	//Load the Xiw matrix for both left and right camera based on the new position
 	GzLoadXiw(render->leftCamera);
@@ -1787,7 +1789,7 @@ int GzStereoPutTriangle(GzRender *render, int numParts, GzToken *nameList,GzPoin
 	GzMatrix rightConcatVertices = {0.0f};
 	GzMatrix rightConcatNormals = {0.0f};
 	GzInsertXiw(render, render->rightCamera.Xiw);
-	GzConcatMatrix(render, rightConcatNormals);
+	GzConcatMatrix(render, rightConcatVertices);
 	GzConcatMatrixNormal(render, rightConcatNormals);
 
 	//Set up vertices, normals, and texture coordinates for both left and right camera

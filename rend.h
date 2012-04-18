@@ -180,7 +180,7 @@ void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v,
 //Stereoscopic 3D
 void GzCopyCamera(const GzCamera &cameraSrc, GzCamera &cameraDest);
 void GzLoadXiw(GzCamera &camera);
-void GzStereoInit(GzRender *render, const GzCoord &leftPos, const GzCoord &rightPos);
+void GzStereoInit(GzRender *render);
 void GzInsertXiw(GzRender *render, GzMatrix matrix);
 int GzStereoPutTriangle(GzRender *render, int numParts, GzToken *nameList, GzPointer *valueList);
 int GzStereoPutTriangleHelper(GzRender *render, GzCoord vertices[3], GzCoord normals[3], GzTextureIndex textures[3], bool leftCamera);
