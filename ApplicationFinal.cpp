@@ -25,6 +25,10 @@ static char THIS_FILE[]=__FILE__;
 extern int tex_fun(float u, float v, GzColor color); /* image texture function */
 extern int ptex_fun(float u, float v, GzColor color); /* procedural texture function */
 
+//int finalRenderMode = GZ_RM_NORMAL;
+//int finalRenderMode = GZ_RM_CUBE;
+int finalRenderMode = GZ_RM_STEREO;
+
 void shade(GzCoord norm, GzCoord color);
 
 //////////////////////////////////////////////////////////////////////
@@ -101,6 +105,22 @@ GzMatrix	rotateY =
 	0.5f,	0.0f,	.866f,	0.0f, 
 	0.0f,	0.0f,	0.0f,	1.0f 
 }; 
+
+GzMatrix cubeMapScale =
+{
+	2.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 2.0f, 0.0f, -1.0f,
+	0.0f, 0.0f, 2.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f
+};
+
+GzMatrix cubeMapRotate =
+{
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, .9037f, -.4282f, 0.0f,
+	0.0f, .4282f, .9037f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f
+};
 
 #if 0 	/* set up app-defined camera if desired, else use camera defaults */
     camera.position[X] = -3.0f;
@@ -182,16 +202,34 @@ GzMatrix	rotateY =
 #else
         valueListShader[5] = (GzPointer)(tex_fun);	/* or use ptex_fun */
 #endif
-        status |= GzPutAttribute(m_pRender, 6, nameListShader, valueListShader);
+
+        status |= GzPutAttribute(m_pRender, 7, nameListShader, valueListShader);
+
+		nameListShader[0] = GZ_RENDERMODE_FLAG;
+		if(finalRenderMode == GZ_RM_NORMAL) valueListShader[0] = (GzPointer)(GZ_RM_NORMAL);
+		else if(finalRenderMode == GZ_RM_CUBE) valueListShader[0] = (GzPointer)(GZ_RM_CUBE);
+		else valueListShader[0] = (GzPointer)(GZ_RM_STEREO);
+
+		status |= GzPutAttribute(m_pRender, 1, nameListShader, valueListShader);
 
 
-	status |= GzPushMatrix(m_pRender, scale);
-	status |= GzPushMatrix(m_pRender, rotateY);
-	status |= GzPushMatrix(m_pRender, rotateX);
+	if(finalRenderMode == GZ_RM_NORMAL)
+	{
+		status |= GzPushMatrix(m_pRender, scale);
+		status |= GzPushMatrix(m_pRender, rotateY);
+		status |= GzPushMatrix(m_pRender, rotateX);
+	}
+	else if(finalRenderMode == GZ_RM_CUBE)
+	{
+		status |= GzPushMatrix(m_pRender, cubeMapScale);
+		status |= GzPushMatrix(m_pRender, cubeMapRotate);
+	}
+	else
+	{
+		GzStereoInit(m_pRender);
+	}
 
-	GzStereoInit(m_pRender);
-
-	if (status) exit(GZ_FAILURE); 
+	if(status) exit(GZ_FAILURE); 
 
 	if (status) 
 		return(GZ_FAILURE); 
@@ -267,11 +305,11 @@ int ApplicationFinal::Render()
 	     valueListTriangle[0] = (GzPointer)vertexList; 
 		 valueListTriangle[1] = (GzPointer)normalList; 
 		 valueListTriangle[2] = (GzPointer)uvList; 
-		 GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
-		 //GzStereoPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
+		 if(finalRenderMode == GZ_RM_STEREO) GzStereoPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
+		 else GzPutTriangle(m_pRender, 3, nameListTriangle, valueListTriangle);
 	}
 
-	//GzCombineDisplays(m_pRender);
+	if(finalRenderMode == GZ_RM_STEREO) GzCombineDisplays(m_pRender);
 
 	GzFlushDisplay2File(outfile, m_pDisplay); 	/* write out or update display to file*/
 	GzFlushDisplay2FrameBuffer(m_pFrameBuffer, m_pDisplay);	// write out or update display to frame buffer

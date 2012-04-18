@@ -222,7 +222,8 @@ int GzNewRender(GzRender **render, GzRenderClass renderClass, GzDisplay	*display
 		DEFAULT_DIFFUSE, 
 		DEFAULT_SPECULAR,
 		DEFAULT_SPEC, 
-		0
+		0,
+		GZ_RM_NORMAL
 	};
 	**render = tempRender;
 
@@ -539,6 +540,11 @@ int GzPutAttribute(GzRender	*render, int numAttributes, GzToken	*nameList,
 		case GZ_TEXTURE_MAP:
 			{
 				render->tex_fun = *((GzTexture) valueList[i]);
+				break;
+			}
+		case GZ_RENDERMODE_FLAG:
+			{
+				render->renderMode = (int) valueList[i];
 				break;
 			}
 		}
@@ -986,14 +992,16 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 						copy(&texColor[0], &texColor[0] + 3, &(render->Ka[0]));
 					}
 
-					//GzCalculateColor(render, currNormal, currColor, false);
+					if(render->renderMode != GZ_RM_CUBE) GzCalculateColor(render, currNormal, currColor, false);
+					else
+					{
+						GzCoord currVertex = {0.0f};
+						currVertex[0] = currSpan.current[0];
+						currVertex[1] = leftEdge->current[1];
+						currVertex[2] = currSpan.current[1];
 
-					GzCoord currVertex = {0.0f};
-					currVertex[0] = currSpan.current[0];
-					currVertex[1] = leftEdge->current[1];
-					currVertex[2] = currSpan.current[1];
-
-					GzGetCubeMapColor(render, currVertex, currNormal, currColor);
+						GzGetCubeMapColor(render, currVertex, currNormal, currColor);
+					}
 					GzPutDisplay(render->display[ACTUALDISPLAY], (int) currSpan.current[0], (int) leftEdge->current[1], ctoi(currColor[0]), ctoi(currColor[1]), ctoi(currColor[2]), a, (GzDepth) currSpan.current[1]);
 				}
 				else
@@ -1408,13 +1416,13 @@ void GzLoadCubeMaps(GzRender *render)
 		case 4:
 			{
 				image = &(render->cmap.posZ);
-				filePath += "1posz.ppm";
+				filePath += "1negz.ppm";
 				break;
 			}
 		case 5:
 			{
 				image = &(render->cmap.negZ);
-				filePath += "1negz.ppm";
+				filePath += "1posz.ppm";
 				break;
 			}
 		}
@@ -1447,9 +1455,8 @@ void GzLoadCubeMaps(GzRender *render)
 void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &normal, GzColor &color)
 {
 	GzCoord cameraRay;
-	GzSubtractVector(vertex, render->camera.position, cameraRay);
-	//cameraRay[0] = 0.0f; cameraRay[1] = 0.0f; cameraRay[2] = -1.0f;
-	//GzSubtractVector(render->camera.lookat, render->camera.position, cameraRay);
+	//GzSubtractVector(vertex, render->camera.position, cameraRay);
+	cameraRay[0] = 0.0f; cameraRay[1] = 0.0f; cameraRay[2] = -1.0f;
 
 	float NdotI = GzDotProduct(cameraRay, normal);
 	GzCoord TwoNtimesNdotI;
@@ -1459,6 +1466,8 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 	GzCoord reflectedRay;
 	GzSubtractVector(cameraRay, TwoNtimesNdotI, reflectedRay);
 
+	GzMultiplyVector(reflectedRay, -1.0f, reflectedRay);
+
 	float absX = fabs(reflectedRay[0]);
 	float absY = fabs(reflectedRay[1]);
 	float absZ = fabs(reflectedRay[2]);
@@ -1466,19 +1475,20 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 	float u, v;
 	if(absX > absY && absX > absZ) //X is largest
 	{
-		u = -reflectedRay[2] / absX;
+		u = reflectedRay[2] / absX;
 		v = -reflectedRay[1] / absX;
 		if(reflectedRay[0] < 0) //Left face
 		{
+			u = -u;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			//GzGetCubeMapTexture(render, CUBEMAPSIDE::LEFT, u, v, color);
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::LEFT, u, v, color);
 		}
 		else //Right face
 		{
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			//GzGetCubeMapTexture(render, CUBEMAPSIDE::RIGHT, u, v, color);
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::RIGHT, u, v, color);
 		}
 	}
 	else if(absY > absX && absY > absZ) //Y is largest
@@ -1489,22 +1499,23 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 		{
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			//GzGetCubeMapTexture(render, CUBEMAPSIDE::DOWN, u, v, color);
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::DOWN, u, v, color);
 		}
 		else //Top face
 		{
-			v = -v;
+			u = -u;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			//GzGetCubeMapTexture(render, CUBEMAPSIDE::UP, u, v, color);
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::UP, u, v, color);
 		}
 	}
 	else //Z is largest
 	{
 		u = reflectedRay[0] / absZ;
-		v = -reflectedRay[1] / absZ;
+		v = reflectedRay[1] / absZ;
 		if(reflectedRay[2] < 0) //Front face
 		{
+			v = -v;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
 			GzGetCubeMapTexture(render, CUBEMAPSIDE::FRONT, u, v, color);
@@ -1513,7 +1524,7 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 		{
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			//GzGetCubeMapTexture(render, CUBEMAPSIDE::BACK, u, v, color);
+			GzGetCubeMapTexture(render, CUBEMAPSIDE::BACK, u, v, color);
 		}
 	}
 }

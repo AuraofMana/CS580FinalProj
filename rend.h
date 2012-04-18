@@ -69,6 +69,7 @@ typedef struct {			/* define a renderer */
   float		    spec;		/* specular power */
   GzTexture		tex_fun;    /* tex_fun(float u, float v, GzColor color) */
   CubeMap		cmap;
+  int			renderMode;
 }  GzRender;
 #endif
 

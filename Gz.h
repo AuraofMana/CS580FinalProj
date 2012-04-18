@@ -58,6 +58,11 @@
 #define	GZ_COLOR			1	/* interpolate vertex color */
 #define	GZ_NORMALS			2	/* interpolate normals */
 
+#define GZ_RENDERMODE_FLAG	1300
+#define GZ_RM_NORMAL	0
+#define GZ_RM_CUBE		1
+#define GZ_RM_STEREO	2
+
 typedef int     GzRenderClass;
 typedef int     GzDisplayClass;
 typedef int     GzToken;
