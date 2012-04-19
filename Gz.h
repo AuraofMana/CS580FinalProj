@@ -62,6 +62,7 @@
 #define GZ_RM_NORMAL	0
 #define GZ_RM_CUBE		1
 #define GZ_RM_STEREO	2
+#define GZ_RM_CEL		3
 
 typedef int     GzRenderClass;
 typedef int     GzDisplayClass;

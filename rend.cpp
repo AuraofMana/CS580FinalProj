@@ -992,8 +992,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 						copy(&texColor[0], &texColor[0] + 3, &(render->Ka[0]));
 					}
 
-					if(render->renderMode != GZ_RM_CUBE) GzCalculateColor(render, currNormal, currColor, false);
-					else
+					if(render->renderMode == GZ_RM_CUBE)
 					{
 						GzCoord currVertex = {0.0f};
 						currVertex[0] = currSpan.current[0];
@@ -1002,6 +1001,8 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 
 						GzGetCubeMapColor(render, currVertex, currNormal, currColor);
 					}
+					else if(render->renderMode == GZ_RM_CEL) GzCalculateColorCel(render, currNormal, currColor);
+					else GzCalculateColor(render, currNormal, currColor, false);
 					GzPutDisplay(render->display[ACTUALDISPLAY], (int) currSpan.current[0], (int) leftEdge->current[1], ctoi(currColor[0]), ctoi(currColor[1]), ctoi(currColor[2]), a, (GzDepth) currSpan.current[1]);
 				}
 				else
@@ -2312,4 +2313,72 @@ void GzCombineDisplays(GzRender *render)
 		render->display[ACTUALDISPLAY]->fbuf[i].green = currPixel.green;
 		render->display[ACTUALDISPLAY]->fbuf[i].blue = currPixel.blue;
 	}
+}
+
+void GzCalculateColorCel(const GzRender *render, const GzCoord &normal, GzColor &color)
+{
+	GzColor specularColor = {0.0};
+	GzColor diffuseColor = {0.0};
+	GzColor ambientColor = {0.0};
+	const GzLight *oneLight = &render->lights[2];
+
+	//Specular
+	GzCoord specularR;
+	float NdotL = GzDotProduct(normal, oneLight->direction);
+	GzMultiplyVector(normal, 2 * NdotL, specularR);
+	GzSubtractVector(specularR, oneLight->direction, specularR);
+
+	GzCoord specularE = {0.0, 0.0, -1.0};
+
+	float RdotE = GzDotProduct(specularR, specularE);
+
+	float NdotE = GzDotProduct(normal, specularE);
+	if((NdotL < 0 && NdotE > 0) || (NdotL > 0 && NdotE < 0)) return;
+	else if(NdotL < 0 && NdotE < 0)
+	{
+		//New Normal
+		GzCoord newNormal;
+		GzMultiplyVector(normal, -1.0, newNormal);
+
+		//New Specular
+		NdotL = GzDotProduct(newNormal, oneLight->direction);
+		GzMultiplyVector(newNormal, 2 * NdotL, specularR);
+		GzSubtractVector(specularR, oneLight->direction, specularR);
+
+		//New RdotE
+		RdotE = GzDotProduct(specularR, specularE);
+	}
+
+	if(RdotE < 0) RdotE = 0.0f;
+	RdotE = pow(RdotE, render->spec);
+
+	//Cel Shading - Specular
+	if(RdotE < 0.5) RdotE = 0.0f;
+	else RdotE = 1.0f;
+
+	GzMultiplyVector(oneLight->color, RdotE, specularColor);
+
+
+	//Diffuse
+	//Cel Shading - Diffuse
+	float dA = 0.0f, dB = 0.3f, dC = 0.6f, dD = 1.0f;
+	if(NdotL < dA) NdotL = dA;
+	else if(NdotL < dB) NdotL = dB;
+	else if(NdotL < dC) NdotL = dC;
+	else NdotL = dD;
+
+	GzMultiplyVector(oneLight->color, NdotL, diffuseColor);
+
+	GzColorMultiply(specularColor, render->Ks, specularColor);
+	GzColorMultiply(diffuseColor, render->Kd, diffuseColor);
+	GzColorMultiply(render->ambientlight.color, render->Ka, ambientColor);
+
+	color[0] = specularColor[0] + diffuseColor[0] + ambientColor[0];
+	color[1] = specularColor[1] + diffuseColor[1] + ambientColor[1];
+	color[2] = specularColor[2] + diffuseColor[2] + ambientColor[2];
+
+	//Prevent color overflow
+	if(color[0] > 1.0) color[0] = 1.0;
+	if(color[1] > 1.0) color[1] = 1.0;
+	if(color[2] > 1.0) color[2] = 1.0;
 }

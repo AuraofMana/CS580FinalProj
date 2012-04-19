@@ -188,3 +188,6 @@ void GzInsertXiw(GzRender *render, GzMatrix matrix);
 int GzStereoPutTriangle(GzRender *render, int numParts, GzToken *nameList, GzPointer *valueList);
 int GzStereoPutTriangleHelper(GzRender *render, GzCoord vertices[3], GzCoord normals[3], GzTextureIndex textures[3], bool leftCamera);
 void GzCombineDisplays(GzRender *render);
+
+//Cel Shading
+void GzCalculateColorCel(const GzRender *render, const GzCoord &normal, GzColor &color);

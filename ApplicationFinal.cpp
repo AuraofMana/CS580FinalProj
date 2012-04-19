@@ -26,8 +26,9 @@ extern int tex_fun(float u, float v, GzColor color); /* image texture function *
 extern int ptex_fun(float u, float v, GzColor color); /* procedural texture function */
 
 //int finalRenderMode = GZ_RM_NORMAL;
-int finalRenderMode = GZ_RM_CUBE;
+//int finalRenderMode = GZ_RM_CUBE;
 //int finalRenderMode = GZ_RM_STEREO;
+int finalRenderMode = GZ_RM_CEL;
 
 void shade(GzCoord norm, GzCoord color);
 
@@ -47,7 +48,6 @@ ApplicationFinal::~ApplicationFinal()
 
 int ApplicationFinal::Initialize()
 {
-	GzCamera	camera;  
 	int		    xRes, yRes, dispClass;	/* display parameters */ 
 
 	GzToken		nameListShader[9]; 	    /* shader attribute names */
@@ -214,9 +214,7 @@ GzMatrix cubeMapCameraRotate =
         status |= GzPutAttribute(m_pRender, 7, nameListShader, valueListShader);
 
 		nameListShader[0] = GZ_RENDERMODE_FLAG;
-		if(finalRenderMode == GZ_RM_NORMAL) valueListShader[0] = (GzPointer)(GZ_RM_NORMAL);
-		else if(finalRenderMode == GZ_RM_CUBE) valueListShader[0] = (GzPointer)(GZ_RM_CUBE);
-		else valueListShader[0] = (GzPointer)(GZ_RM_STEREO);
+		valueListShader[0] = (GzPointer)finalRenderMode;
 
 		status |= GzPutAttribute(m_pRender, 1, nameListShader, valueListShader);
 
