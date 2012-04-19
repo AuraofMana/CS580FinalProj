@@ -26,8 +26,8 @@ extern int tex_fun(float u, float v, GzColor color); /* image texture function *
 extern int ptex_fun(float u, float v, GzColor color); /* procedural texture function */
 
 //int finalRenderMode = GZ_RM_NORMAL;
-//int finalRenderMode = GZ_RM_CUBE;
-int finalRenderMode = GZ_RM_STEREO;
+int finalRenderMode = GZ_RM_CUBE;
+//int finalRenderMode = GZ_RM_STEREO;
 
 void shade(GzCoord norm, GzCoord color);
 
@@ -68,8 +68,8 @@ int ApplicationFinal::Initialize()
 	/* 
 	 * initialize the display and the renderer 
 	 */ 
- 	m_nWidth = 256;		// frame buffer and display width
-	m_nHeight = 256;    // frame buffer and display height
+ 	m_nWidth = 512;		// frame buffer and display width
+	m_nHeight = 512;    // frame buffer and display height
 
 	status |= GzNewFrameBuffer(&m_pFrameBuffer, m_nWidth, m_nHeight);
 
@@ -120,6 +120,14 @@ GzMatrix cubeMapRotate =
 	0.0f, .9037f, -.4282f, 0.0f,
 	0.0f, .4282f, .9037f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f
+};
+
+GzMatrix cubeMapCameraRotate =
+{
+	-0.4481f,	0.0f,	.893f,	0.0f, 
+	0.0f,	1.0f,	0.0f,	0.0f, 
+	-.893f,	0.0f,	-0.4481f,	0.0f, 
+	0.0f,	0.0f,	0.0f,	1.0f 
 };
 
 #if 0 	/* set up app-defined camera if desired, else use camera defaults */
@@ -223,6 +231,7 @@ GzMatrix cubeMapRotate =
 	{
 		status |= GzPushMatrix(m_pRender, cubeMapScale);
 		status |= GzPushMatrix(m_pRender, cubeMapRotate);
+		//GzXformCamera(m_pRender->camera, cubeMapCameraRotate);
 	}
 	else
 	{
@@ -249,10 +258,10 @@ int ApplicationFinal::Render()
 
 
 	/* Initialize Display */
-	status |= GzInitDisplay(m_pDisplay); 
-	
+	if(finalRenderMode == GZ_RM_STEREO) GzClearFrameBuffers(m_pRender);
+	else status |= GzInitDisplay(m_pDisplay);
 	/* 
-	* Tokens associated with triangle vertex values 
+	* Tokens associated with triangle vertex values
 	*/ 
 	nameListTriangle[0] = GZ_POSITION; 
 	nameListTriangle[1] = GZ_NORMAL; 

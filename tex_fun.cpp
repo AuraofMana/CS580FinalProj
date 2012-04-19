@@ -13,7 +13,7 @@ int tex_fun(float u, float v, GzColor color)
   unsigned char		pixel[3];
   unsigned char     dummy;
   char  		foo[8];
-  int   		i, j;
+  int   		i;
   FILE			*fd;
 
   if (reset) {          /* open and load texture file */
@@ -31,9 +31,9 @@ int tex_fun(float u, float v, GzColor color)
 
     for (i = 0; i < xs*ys; i++) {	/* create array of GzColor values */
       fread(pixel, sizeof(pixel), 1, fd);
-      image[i][RED] = (float)((int)pixel[RED]) * (1.0 / 255.0);
-      image[i][GREEN] = (float)((int)pixel[GREEN]) * (1.0 / 255.0);
-      image[i][BLUE] = (float)((int)pixel[BLUE]) * (1.0 / 255.0);
+      image[i][RED] = (float)((int)pixel[RED]) * (1.0f / 255.0f);
+      image[i][GREEN] = (float)((int)pixel[GREEN]) * (1.0f / 255.0f);
+      image[i][BLUE] = (float)((int)pixel[BLUE]) * (1.0f / 255.0f);
       }
 
     reset = 0;          /* init is done */
@@ -49,8 +49,8 @@ int tex_fun(float u, float v, GzColor color)
   if(u > 1.0f) u = 1.0f;
   if(v > 1.0f) v = 1.0f;
 
-  int u0 = u * (xs - 1);
-  int v0 = v * (ys - 1);
+  int u0 = (int) (u * (xs - 1));
+  int v0 = (int) (v * (ys - 1));
 
   int u1, v1;
 
@@ -84,11 +84,7 @@ int tex_fun(float u, float v, GzColor color)
 /* Procedural texture function */
 int ptex_fun(float u, float v, GzColor color)
 {
-  unsigned char		pixel[3];
-  unsigned char     dummy;
-  char  		foo[8];
   int   		i, j, c;
-  FILE			*fd;
 
   xs = ys = 64;
 
@@ -104,9 +100,9 @@ int ptex_fun(float u, float v, GzColor color)
 		  for (j = 0; j < xs; j++) {
 			  c = ((((i&0x8)==0)^((j&0x8))==0));
 			  int imgIndex = j * (xs) + i;
-			  image[imgIndex][0] = c;
-			  image[imgIndex][1] = c;
-			  image[imgIndex][2] = c;
+			  image[imgIndex][0] = (float) c;
+			  image[imgIndex][1] = (float) c;
+			  image[imgIndex][2] = (float) c;
 		  }
 	  }
 	  reset = 0;          /* init is done */
@@ -121,8 +117,8 @@ int ptex_fun(float u, float v, GzColor color)
 	  return GZ_FAILURE;
   }
 
-  int u0 = u * (xs - 1);
-  int v0 = v * (ys - 1);
+  int u0 = (int) (u * (xs - 1));
+  int v0 = (int) (v * (ys - 1));
 
   int u1, v1;
 

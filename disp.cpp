@@ -62,7 +62,7 @@ int GzInitDisplay(GzDisplay	*display)
 /* set everything to some default values - start a new frame */
 
 	const int RESOLUTION = display->xres * display->yres;
-	GzPixel initPixel = {4095, 4095, 4095, 255, INT_MAX};
+	GzPixel initPixel = {2048, 1792, 1536, 255, INT_MAX};
 	for(int i = 0; i < RESOLUTION; ++i)
 	{
 		display->fbuf[i] = initPixel;

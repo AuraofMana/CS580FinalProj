@@ -1482,13 +1482,13 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 			u = -u;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::LEFT, u, v, color);
+			GzGetCubeMapTexture(render, LEFT, u, v, color);
 		}
 		else //Right face
 		{
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::RIGHT, u, v, color);
+			GzGetCubeMapTexture(render, RIGHT, u, v, color);
 		}
 	}
 	else if(absY > absX && absY > absZ) //Y is largest
@@ -1499,14 +1499,14 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 		{
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::DOWN, u, v, color);
+			GzGetCubeMapTexture(render, DOWN, u, v, color);
 		}
 		else //Top face
 		{
 			u = -u;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::UP, u, v, color);
+			GzGetCubeMapTexture(render, UP, u, v, color);
 		}
 	}
 	else //Z is largest
@@ -1518,13 +1518,13 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 			v = -v;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::FRONT, u, v, color);
+			GzGetCubeMapTexture(render, FRONT, u, v, color);
 		}
 		else //Back face
 		{
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
-			GzGetCubeMapTexture(render, CUBEMAPSIDE::BACK, u, v, color);
+			GzGetCubeMapTexture(render, BACK, u, v, color);
 		}
 	}
 }
@@ -1534,32 +1534,32 @@ void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v,
 	GzColor *cmPtr;
 	switch(cmEnum)
 	{
-	case CUBEMAPSIDE::LEFT:
+	case LEFT:
 		{
 			cmPtr = render->cmap.negX;
 			break;
 		}
-	case CUBEMAPSIDE::RIGHT:
+	case RIGHT:
 		{
 			cmPtr = render->cmap.posX;
 			break;
 		}
-	case CUBEMAPSIDE::UP:
+	case UP:
 		{
 			cmPtr = render->cmap.posY;
 			break;
 		}
-	case CUBEMAPSIDE::DOWN:
+	case DOWN:
 		{
 			cmPtr = render->cmap.negY;
 			break;
 		}
-	case CUBEMAPSIDE::FRONT:
+	case FRONT:
 		{
 			cmPtr = render->cmap.negZ;
 			break;
 		}
-	case CUBEMAPSIDE::BACK:
+	case BACK:
 		{
 			cmPtr = render->cmap.posZ;
 			break;
@@ -1571,8 +1571,8 @@ void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v,
 	if(u > 1.0f) u = 1.0f;
 	if(v > 1.0f) v = 1.0f;
 
-	int u0 = u * (render->cmap.xSize - 1);
-	int v0 = v * (render->cmap.ySize - 1);
+	int u0 = (int) (u * (render->cmap.xSize - 1));
+	int v0 = (int) (v * (render->cmap.ySize - 1));
 
 	int u1, v1;
 
@@ -1598,6 +1598,15 @@ void GzGetCubeMapTexture(GzRender *render, CUBEMAPSIDE cmEnum, float u, float v,
 	color[0] = bottomRightRatio * (*bottomRight)[0] + bottomLeftRatio * (*bottomLeft)[0] + topRightRatio * (*topRight)[0] + topLeftRatio * (*topLeft)[0];
 	color[1] = bottomRightRatio * (*bottomRight)[1] + bottomLeftRatio * (*bottomLeft)[1] + topRightRatio * (*topRight)[1] + topLeftRatio * (*topLeft)[1];
 	color[2] = bottomRightRatio * (*bottomRight)[2] + bottomLeftRatio * (*bottomLeft)[2] + topRightRatio * (*topRight)[2] + topLeftRatio * (*topLeft)[2];
+}
+
+void GzXformCamera(GzCamera &camera, const GzMatrix &matrix)
+{
+	GzVector camVec;
+	GzCoordToGzVector(camera.position, camVec);
+	GzMatrixTimesVector(matrix, camVec, camVec);
+	GzVectorToGzCoord(camVec, camera.position);
+	GzLoadXiw(camera);
 }
 
 void GzCopyCamera(const GzCamera &cameraSrc, GzCamera &cameraDest)
@@ -1671,6 +1680,9 @@ void GzLoadXiw(GzCamera &camera)
 
 void GzStereoInit(GzRender *render)
 {
+	//Clear frame buffers
+	GzClearFrameBuffers(render);
+
 	render->leftCamera.position[0] -= 0.5;
 	render->leftCamera.lookat[0] -= 0.5;
 	render->rightCamera.position[0] += 0.5;
@@ -1679,6 +1691,17 @@ void GzStereoInit(GzRender *render)
 	//Load the Xiw matrix for both left and right camera based on the new position
 	GzLoadXiw(render->leftCamera);
 	GzLoadXiw(render->rightCamera);
+}
+
+void GzClearFrameBuffers(GzRender *render)
+{
+	GzPixel currPixel = {(GzIntensity) 2048, (GzIntensity) 1792, (GzIntensity) 1536, 255, (GzDepth) INT_MAX};
+	for(int i = 0; i < render->display[ACTUALDISPLAY]->xres * render->display[ACTUALDISPLAY]->yres; ++i)
+	{
+		render->display[ACTUALDISPLAY]->fbuf[i] = currPixel;
+		render->display[STEREOLEFT]->fbuf[i] = currPixel;
+		render->display[STEREORIGHT]->fbuf[i] = currPixel;
+	}
 }
 
 void GzInsertXiw(GzRender *render, GzMatrix matrix)
@@ -1716,7 +1739,7 @@ void GzInsertXiw(GzRender *render, GzMatrix matrix)
 	GzCrossProduct(x0, x1, x0crossx1);
 
 	float det = GzDotProduct(x0, x1crossx2);
-	det = 1.0 / det;
+	det = 1.0f / det;
 
 	Gz3x3Matrix invTemp = {0.0};
 	invTemp[0][0] = x1crossx2[0];
@@ -2281,10 +2304,10 @@ void GzCombineDisplays(GzRender *render)
 {
 	for(int i = 0; i < render->display[ACTUALDISPLAY]->xres * render->display[ACTUALDISPLAY]->yres; ++i)
 	{
-		GzPixel currPixel = {0.0, 0.0, 0.0, 255, 1.0};
+		GzPixel currPixel = {(GzIntensity) 0.0, (GzIntensity) 0.0, (GzIntensity) 0.0, 255, (GzDepth) 1.0};
 		currPixel.red += render->display[STEREOLEFT]->fbuf[i].red; //100% red from the left camera
 		currPixel.blue += render->display[STEREORIGHT]->fbuf[i].blue; //100% blue from the right camera
-		currPixel.green += render->display[STEREOLEFT]->fbuf[i].green * 0.5f + render->display[STEREORIGHT]->fbuf[i].green * 0.5f; //50% green from each camera
+		currPixel.green += (GzIntensity) (render->display[STEREOLEFT]->fbuf[i].green * 0.5f + render->display[STEREORIGHT]->fbuf[i].green * 0.5f); //50% green from each camera
 		render->display[ACTUALDISPLAY]->fbuf[i].red = currPixel.red;
 		render->display[ACTUALDISPLAY]->fbuf[i].green = currPixel.green;
 		render->display[ACTUALDISPLAY]->fbuf[i].blue = currPixel.blue;
