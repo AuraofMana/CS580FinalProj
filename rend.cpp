@@ -14,6 +14,7 @@ using std::copy;
 using std::string;
 
 #define GZDEGREETORADIAN(GzDegree) (GzDegree * 3.14159265 / 180.0)
+#define GZROUND(fvar) ((int) (fvar + 0.5f))
 
 int GzRotXMat(float degree, GzMatrix mat)
 {
@@ -566,9 +567,9 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 - invoke triangle rasterizer  
 */
 
-	GzCoord vertices[3] = {0};
-	GzCoord normals[3] = {0};
-	GzTextureIndex textures[3] = {0};
+	GzCoord vertices[3] = {0.0f};
+	GzCoord normals[3] = {0.0f};
+	GzTextureIndex textures[3] = {0.0f};
 
 	for(int i = 0; i < numParts; ++i)
 	{
@@ -618,7 +619,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 
 
 	//Grab the concatenation matrix for vertices
-	GzMatrix concat = {0.0};
+	GzMatrix concat = {0.0f};
 	GzConcatMatrix(render, concat);
 
 	//Multiply the vertices with the concatenated matrix
@@ -642,7 +643,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 	GzMultiplyVector(vertices[2], 1.0f / triVec[3], vertices[2]); //Perspective
 
 	//Clip
-	if(vertices[0][2] < 0.0 || vertices[1][2] < 0.0 || vertices[2][2] < 0.0)
+	if(vertices[0][2] < 0.0f || vertices[1][2] < 0.0f || vertices[2][2] < 0.0f)
 	{
 		return GZ_SUCCESS; //Done
 	}
@@ -729,6 +730,14 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		{textures[2][0], textures[2][1]},
 		{textures[0][0], textures[0][1]}
 	};
+
+	if(render->renderMode == GZ_RM_CEL)
+	{
+		GzIntensity blackRed = 0, blackGreen = 0, blackBlue = 0;
+		GzDrawEdge(render, edge10, blackRed, blackGreen, blackBlue);
+		GzDrawEdge(render, edge21, blackRed, blackGreen, blackBlue);
+		GzDrawEdge(render, edge20, blackRed, blackGreen, blackBlue);
+	}
 
 	if(render->interp_mode == GZ_COLOR)
 	{
@@ -956,17 +965,17 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 			GzDepth z;
 			GzGetDisplay(render->display[ACTUALDISPLAY], (int) currSpan.current[0], (int) leftEdge->current[1], &r, &g, &b, &a, &z);
 
-			if(currSpan.current[1] < z)
+			if((GzDepth)(currSpan.current[1]) < z)
 			{
-				GzColor currColor = {0.0}, texColor = {0.0};
-				GzTextureIndex currTex = {0.0};
+				GzColor currColor = {0.0f}, texColor = {0.0f};
+				GzTextureIndex currTex = {0.0f};
 				float oneMinusRatio = 1.0f - currSpan.ratio;;
 
 				//Calculate texture color
 				currTex[0] = currSpan.texStart[0] * oneMinusRatio + currSpan.texEnd[0] * currSpan.ratio;
 				currTex[1] = currSpan.texStart[1] * oneMinusRatio + currSpan.texEnd[1] * currSpan.ratio;
 				GzXformToAffine(currTex, GzNewVz(currSpan.current[1]), currTex);
-				if(render->tex_fun != 0) render->tex_fun(currTex[0], currTex[1], texColor);
+				if(render->tex_fun != 0 && render->renderMode != GZ_RM_CEL) render->tex_fun(currTex[0], currTex[1], texColor);
 
 				if(render->interp_mode == GZ_COLOR)
 				{
@@ -974,7 +983,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					currColor[1] = currSpan.dataStart[1] * oneMinusRatio + currSpan.dataEnd[1] * currSpan.ratio;
 					currColor[2] = currSpan.dataStart[2] * oneMinusRatio + currSpan.dataEnd[2] * currSpan.ratio;
 
-					if(render->tex_fun != 0) GzColorMultiply(texColor, currColor, currColor);
+					if(render->tex_fun != 0 && render->renderMode != GZ_RM_CEL) GzColorMultiply(texColor, currColor, currColor);
 					GzPutDisplay(render->display[ACTUALDISPLAY], (int) currSpan.current[0], (int) leftEdge->current[1], ctoi(currColor[0]), ctoi(currColor[1]), ctoi(currColor[2]), a, (GzDepth) currSpan.current[1]);
 				}
 				else if(render->interp_mode == GZ_NORMAL)
@@ -986,7 +995,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 					currNormal[2] = currSpan.dataStart[2] * oneMinusRatio + currSpan.dataEnd[2] * currSpan.ratio;
 					GzNormalizeVector(currNormal, currNormal);
 
-					if(render->tex_fun != 0)
+					if(render->tex_fun != 0 && render->renderMode != GZ_RM_CEL)
 					{
 						copy(&texColor[0], &texColor[0] + 3, &(render->Kd[0]));
 						copy(&texColor[0], &texColor[0] + 3, &(render->Ka[0]));
@@ -2333,7 +2342,10 @@ void GzCalculateColorCel(const GzRender *render, const GzCoord &normal, GzColor 
 	float RdotE = GzDotProduct(specularR, specularE);
 
 	float NdotE = GzDotProduct(normal, specularE);
-	if((NdotL < 0 && NdotE > 0) || (NdotL > 0 && NdotE < 0)) return;
+	if((NdotL < 0 && NdotE > 0) || (NdotL > 0 && NdotE < 0))
+	{
+		NdotL = 0.2f;
+	}
 	else if(NdotL < 0 && NdotE < 0)
 	{
 		//New Normal
@@ -2361,11 +2373,9 @@ void GzCalculateColorCel(const GzRender *render, const GzCoord &normal, GzColor 
 
 	//Diffuse
 	//Cel Shading - Diffuse
-	float dA = 0.0f, dB = 0.3f, dC = 0.6f, dD = 1.0f;
-	if(NdotL < dA) NdotL = dA;
-	else if(NdotL < dB) NdotL = dB;
-	else if(NdotL < dC) NdotL = dC;
-	else NdotL = dD;
+	if(NdotL < 0.5f) NdotL = 0.5f;
+	else if(NdotL < 0.75f) NdotL = 0.75f;
+	else NdotL = 1.0f;
 
 	GzMultiplyVector(oneLight->color, NdotL, diffuseColor);
 
@@ -2381,4 +2391,247 @@ void GzCalculateColorCel(const GzRender *render, const GzCoord &normal, GzColor 
 	if(color[0] > 1.0) color[0] = 1.0;
 	if(color[1] > 1.0) color[1] = 1.0;
 	if(color[2] > 1.0) color[2] = 1.0;
+}
+
+void GzDrawEdge(GzRender *render, GzEdge e, GzIntensity red, GzIntensity green, GzIntensity blue)
+{
+	int x1 = (int) e.start[0];
+	int y1 = (int) e.start[1];
+	int x2 = (int) e.end[0];
+	int y2 = (int) e.end[1];
+	const GzIntensity currAlpha = 255;
+	const GzDepth currDepth = INT_MAX - 1;
+
+	//Assume z are all background
+
+	if(x1 > render->display[ACTUALDISPLAY]->xres || x1 < 0.0f || y1 > render->display[ACTUALDISPLAY]->yres || y1 < 0.0f
+		|| x2 > render->display[ACTUALDISPLAY]->xres || x2 < 0.0f || y2 > render->display[ACTUALDISPLAY]->yres || y2 < 0.0f)
+	{
+		return;
+	}
+
+	int dx = x2 - x1;
+	int dy = y2 - y1;
+
+	if(dx == 0 && dy == 0) //Just a pixel
+	{
+		GzDrawPixel(render->display[ACTUALDISPLAY], x1, y1, red, green, blue, currAlpha, currDepth);
+		return;
+	}
+
+	if(dx > 0 && dy > 0 && dx > dy) //First quadrant 1 (dx > dy)
+	{
+		float y_increment = (float) dy / dx;
+		int x = x1;
+		float y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, (int) y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dx; ++i)
+		{
+			++x;
+			y += y_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, GZROUND(y), red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx > 0 && dy > 0 && dx < dy) //First quadrant 2 (dx < dy)
+	{
+		float x_increment = (float) dx / dy;
+		float x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], (int) x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dy; ++i)
+		{
+			++y;
+			x += x_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], GZROUND(x), y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx > 0 && dy < 0 && dx > -dy) //Fourth quadrant 1 (dx > -dy)
+	{
+		float y_increment = (float) dy / dx;
+		int x = x1;
+		float y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, (int) y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dx; ++i)
+		{
+			++x;
+			y += y_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, GZROUND(y), red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx > 0 && dy < 0 && dx < -dy) //Fourth quadrant 2 (dx < -dy)
+	{
+		dy = -dy;
+		float x_increment = (float) dx / dy;
+		float x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], (int) x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dy; ++i)
+		{
+			--y;
+			x += x_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], GZROUND(x), y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx < 0 && dy > 0 && -dx > dy) //Second quadrant 1 (-dx > dy)
+	{
+		dx = -dx;
+		float y_increment = (float) dy / dx;
+		int x = x1;
+		float y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, (int) y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dx; ++i)
+		{
+			--x;
+			y += y_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, GZROUND(y), red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx < 0 && dy > 0 && -dx < dy) //Second quadrant 2 (-dx < dy)
+	{
+		float x_increment = (float) dx / dy;
+		float x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], (int) x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dy; ++i)
+		{
+			++y;
+			x += x_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], GZROUND(x), y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx < 0 && dy < 0 && dx < dy) //Third quadrant 1 (-dx > -dy)
+	{
+		dx = -dx;
+		float y_increment = (float) dy / dx;
+		int x = x1;
+		float y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, (int) y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dx; ++i)
+		{
+			--x;
+			y += y_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, GZROUND(y), red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx < 0 && dy < 0 && dx > dy) //Third quadrant 2 (-dx < -dy)
+	{
+		dy = -dy;
+		float x_increment = (float) dx / dy;
+		float x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], (int) x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dy; ++i)
+		{
+			--y;
+			x += x_increment;
+			GzDrawPixel(render->display[ACTUALDISPLAY], GZROUND(x), y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx > 0 && dx == dy) //45 degrees
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dx; ++i)
+		{
+			++x;
+			++y;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx < 0 && -dx == dy) //135 degrees
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dy; ++i)
+		{
+			--x;
+			++y;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dy < 0 && dx == -dy) //315 degrees
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dx; ++i)
+		{
+			++x;
+			--y;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx < 0 && dx == dy) //245 degrees
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < -dx; ++i)
+		{
+			--x;
+			--y;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx == 0 && dy > 0) //Vertical up
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dy; ++i)
+		{
+			++y;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dx == 0 && dy < 0) //Vertical down
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < -dy; ++i)
+		{
+			--y;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dy == 0 && dx > 0) //Horizontal right
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < dx; ++i)
+		{
+			++x;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+	else if(dy == 0 && dx < 0) //Horizontal left
+	{
+		int x = x1;
+		int y = y1;
+		GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		for(int i = 0; i < -dx; ++i)
+		{
+			--x;
+			GzDrawPixel(render->display[ACTUALDISPLAY], x, y, red, green, blue, currAlpha, currDepth);
+		}
+	}
+}
+
+void GzDrawPixel(GzDisplay *display, int x, int y, GzIntensity red, GzIntensity green, GzIntensity blue, GzIntensity alpha, GzDepth z)
+{
+	int thickness = 2;
+	for(int i = x - thickness; i < x + thickness; ++i)
+	{
+		for(int j = y - thickness; j < y + thickness; ++j)
+		{
+			GzIntensity tR, tG, tB, tA;
+			GzDepth tZ;
+			GzGetDisplay(display, i, j, &tR, &tG, &tB, &tA, &tZ);
+			if(z <= tZ) GzPutDisplay(display, i, j, red, green, blue, alpha, z);
+		}
+	}
 }
