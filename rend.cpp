@@ -1402,37 +1402,37 @@ void GzLoadCubeMaps(GzRender *render)
 		case 0:
 			{
 				image = &(render->cmap.posX);
-				filePath += "1posx.ppm";
+				filePath += "2posx.ppm";
 				break;
 			}
 		case 1:
 			{
 				image = &(render->cmap.negX);
-				filePath += "1negx.ppm";
+				filePath += "2negx.ppm";
 				break;
 			}
 		case 2:
 			{
 				image = &(render->cmap.posY);
-				filePath += "1posy.ppm";
+				filePath += "2posy.ppm";
 				break;
 			}
 		case 3:
 			{
 				image = &(render->cmap.negY);
-				filePath += "1negy.ppm";
+				filePath += "2negy.ppm";
 				break;
 			}
 		case 4:
 			{
 				image = &(render->cmap.posZ);
-				filePath += "1negz.ppm";
+				filePath += "2negz.ppm";
 				break;
 			}
 		case 5:
 			{
 				image = &(render->cmap.negZ);
-				filePath += "1posz.ppm";
+				filePath += "2posz.ppm";
 				break;
 			}
 		}
@@ -1464,19 +1464,22 @@ void GzLoadCubeMaps(GzRender *render)
 
 void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &normal, GzColor &color)
 {
-	GzCoord cameraRay;
-	//GzSubtractVector(vertex, render->camera.position, cameraRay);
-	cameraRay[0] = 0.0f; cameraRay[1] = 0.0f; cameraRay[2] = -1.0f;
+	GzCoord currVertex = {0.0f}, currNormal = {0.0f};
+	copy(&vertex[0], &vertex[0] + 3, &currVertex[0]);
+	copy(&normal[0], &normal[0] + 3, &currNormal[0]);
 
-	float NdotI = GzDotProduct(cameraRay, normal);
+	GzBackToWorldVertices(render, currVertex);
+	GzBackToWorldNormal(render, currNormal);
+
+	GzCoord cameraRay = {0.0f};
+	GzSubtractVector(currVertex, render->camera.position, cameraRay);
+
+	float NdotI = GzDotProduct(cameraRay, currNormal);
 	GzCoord TwoNtimesNdotI;
-	GzMultiplyVector(normal, 2 * NdotI, TwoNtimesNdotI);
+	GzMultiplyVector(currNormal, 2 * NdotI, TwoNtimesNdotI);
 
-	
 	GzCoord reflectedRay;
 	GzSubtractVector(cameraRay, TwoNtimesNdotI, reflectedRay);
-
-	GzMultiplyVector(reflectedRay, -1.0f, reflectedRay);
 
 	float absX = fabs(reflectedRay[0]);
 	float absY = fabs(reflectedRay[1]);
@@ -1507,6 +1510,7 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 		v = reflectedRay[2] / absY;
 		if(reflectedRay[1] < 0) //Bottom face
 		{
+			v = -v;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
 			GzGetCubeMapTexture(render, DOWN, u, v, color);
@@ -1617,6 +1621,101 @@ void GzXformCamera(GzCamera &camera, const GzMatrix &matrix)
 	GzMatrixTimesVector(matrix, camVec, camVec);
 	GzVectorToGzCoord(camVec, camera.position);
 	GzLoadXiw(camera);
+}
+
+void GzBackToWorldVertices(GzRender *render, GzCoord &vertex)
+{
+	//T * Xwm * Xiw * Xpi * Xsp * v = vf
+	//T * Xwm * v = Xsp^-1 * Xpi^-1 * Xiw^-1 * vf
+
+	GzMatrix matrix = {0.0f}, concat = {0.0f};
+	copy(&render->Ximage[0][0][0], &render->Ximage[0][0][0] + 16, &concat[0][0]);
+	GzInvertMatrix(concat);
+	copy(&render->Ximage[1][0][0], &render->Ximage[1][0][0] + 16, &matrix[0][0]);
+	GzInvertMatrix(matrix);
+	GzMatrixMultiplication(concat, matrix, concat);
+	copy(&render->Ximage[2][0][0], &render->Ximage[2][0][0] + 16, &matrix[0][0]);
+	GzInvertMatrix(matrix);
+	GzMatrixMultiplication(concat, matrix, concat);
+
+	GzVector vertexVec = {0.0f};
+	GzCoordToGzVector(vertex, vertexVec);
+	GzMatrixTimesVector(concat, vertexVec, vertexVec);
+	GzVectorToGzCoord(vertexVec, vertex);
+}
+
+void GzBackToWorldNormal(GzRender *render, GzCoord &normal)
+{
+	//T * Xwm * Xiw * N = Nf
+	//T * Xwm * N = Xiw^-1 * Nf
+	GzMatrix matrix = {0.0f};
+	copy(&render->Xnorm[2][0][0], &render->Xnorm[2][0][0] + 16, &matrix[0][0]);
+	GzInvertMatrix(matrix);
+
+	GzVector normalVec = {0.0f};
+	GzCoordToGzVector(normal, normalVec);
+	GzMatrixTimesVector(matrix, normalVec, normalVec);
+	GzVectorToGzCoord(normalVec, normal);
+}
+
+void GzInvertMatrix(GzMatrix &matrix)
+{
+	float m = matrix[0][0];
+	float m2 = matrix[0][1];
+	float m3 = matrix[0][2];
+	float m4 = matrix[0][3];
+	float m5 = matrix[1][0];
+	float m6 = matrix[1][1];
+	float m7 = matrix[1][2];
+	float m8 = matrix[1][3];
+	float m9 = matrix[2][0];
+	float m10 = matrix[2][1];
+	float m11 = matrix[2][2];
+	float m12 = matrix[2][3];
+	float m13 = matrix[3][0];
+	float m14 = matrix[3][1];
+	float m15 = matrix[3][2];
+	float m16 = matrix[3][3];
+	float num = m11 * m16 - m12 * m15;
+	float num2 = m10 * m16 - m12 * m14;
+	float num3 = m10 * m15 - m11 * m14;
+	float num4 = m9 * m16 - m12 * m13;
+	float num5 = m9 * m15 - m11 * m13;
+	float num6 = m9 * m14 - m10 * m13;
+	float num7 = m6 * num - m7 * num2 + m8 * num3;
+	float num8 = -(m5 * num - m7 * num4 + m8 * num5);
+	float num9 = m5 * num2 - m6 * num4 + m8 * num6;
+	float num10 = -(m5 * num3 - m6 * num5 + m7 * num6);
+	float num11 = 1.0f / (m * num7 + m2 * num8 + m3 * num9 + m4 * num10);
+
+	matrix[0][0] = num7 * num11;
+	matrix[1][0] = num8 * num11;
+	matrix[2][0] = num9 * num11;
+	matrix[3][0] = num10 * num11;
+	matrix[0][1] = -(m2 * num - m3 * num2 + m4 * num3) * num11;
+	matrix[1][1] = (m * num - m3 * num4 + m4 * num5) * num11;
+	matrix[2][1] = -(m * num2 - m2 * num4 + m4 * num6) * num11;
+	matrix[3][1] = (m * num3 - m2 * num5 + m3 * num6) * num11;
+	float num12 = m7 * m16 - m8 * m15;
+	float num13 = m6 * m16 - m8 * m14;
+	float num14 = m6 * m15 - m7 * m14;
+	float num15 = m5 * m16 - m8 * m13;
+	float num16 = m5 * m15 - m7 * m13;
+	float num17 = m5 * m14 - m6 * m13;
+	matrix[0][2] = (m2 * num12 - m3 * num13 + m4 * num14) * num11;
+	matrix[1][2] = -(m * num12 - m3 * num15 + m4 * num16) * num11;
+	matrix[2][2] = (m * num13 - m2 * num15 + m4 * num17) * num11;
+	matrix[3][2] = -(m * num14 - m2 * num16 + m3 * num17) * num11;
+	float num18 = m7 * m12 - m8 * m11;
+	float num19 = m6 * m12 - m8 * m10;
+	float num20 = m6 * m11 - m7 * m10;
+	float num21 = m5 * m12 - m8 * m9;
+	float num22 = m5 * m11 - m7 * m9;
+	float num23 = m5 * m10 - m6 * m9;
+	matrix[0][3] = -(m2 * num18 - m3 * num19 + m4 * num20) * num11;
+	matrix[1][3] = (m * num18 - m3 * num21 + m4 * num22) * num11;
+	matrix[2][3] = -(m * num19 - m2 * num21 + m4 * num23) * num11;
+	matrix[3][3] = (m * num20 - m2 * num22 + m3 * num23) * num11;
 }
 
 void GzCopyCamera(const GzCamera &cameraSrc, GzCamera &cameraDest)
