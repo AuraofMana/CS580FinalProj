@@ -1693,10 +1693,10 @@ void GzStereoInit(GzRender *render)
 	//Clear frame buffers
 	GzClearFrameBuffers(render);
 
-	render->leftCamera.position[0] -= 0.5;
-	render->leftCamera.lookat[0] -= 0.5;
-	render->rightCamera.position[0] += 0.5;
-	render->rightCamera.lookat[0] += 0.5;
+	render->leftCamera.position[0] -= 0.8;
+	render->leftCamera.lookat[0] -= 0.1;
+	render->rightCamera.position[0] += 0.8;
+	render->rightCamera.lookat[0] += 0.1;
 
 	//Load the Xiw matrix for both left and right camera based on the new position
 	GzLoadXiw(render->leftCamera);
@@ -2317,7 +2317,7 @@ void GzCombineDisplays(GzRender *render)
 		GzPixel currPixel = {(GzIntensity) 0.0, (GzIntensity) 0.0, (GzIntensity) 0.0, 255, (GzDepth) 1.0};
 		currPixel.red += render->display[STEREOLEFT]->fbuf[i].red; //100% red from the left camera
 		currPixel.blue += render->display[STEREORIGHT]->fbuf[i].blue; //100% blue from the right camera
-		currPixel.green += (GzIntensity) (render->display[STEREOLEFT]->fbuf[i].green * 0.5f + render->display[STEREORIGHT]->fbuf[i].green * 0.5f); //50% green from each camera
+		currPixel.green += (GzIntensity) (render->display[STEREOLEFT]->fbuf[i].green * 0.2f + render->display[STEREORIGHT]->fbuf[i].green * 0.8f); //50% green from each camera
 		render->display[ACTUALDISPLAY]->fbuf[i].red = currPixel.red;
 		render->display[ACTUALDISPLAY]->fbuf[i].green = currPixel.green;
 		render->display[ACTUALDISPLAY]->fbuf[i].blue = currPixel.blue;
