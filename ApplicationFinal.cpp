@@ -26,8 +26,8 @@ extern int tex_fun(float u, float v, GzColor color); /* image texture function *
 extern int ptex_fun(float u, float v, GzColor color); /* procedural texture function */
 
 //int finalRenderMode = GZ_RM_NORMAL;
-int finalRenderMode = GZ_RM_CUBE;
-//int finalRenderMode = GZ_RM_STEREO;
+//int finalRenderMode = GZ_RM_CUBE;
+int finalRenderMode = GZ_RM_STEREO;
 //int finalRenderMode = GZ_RM_CEL;
 
 void shade(GzCoord norm, GzCoord color);
