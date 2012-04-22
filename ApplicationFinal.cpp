@@ -26,8 +26,8 @@ extern int tex_fun(float u, float v, GzColor color); /* image texture function *
 extern int ptex_fun(float u, float v, GzColor color); /* procedural texture function */
 
 //int finalRenderMode = GZ_RM_NORMAL;
-//int finalRenderMode = GZ_RM_CUBE;
-int finalRenderMode = GZ_RM_STEREO;
+int finalRenderMode = GZ_RM_CUBE;
+//int finalRenderMode = GZ_RM_STEREO;
 //int finalRenderMode = GZ_RM_CEL;
 
 void shade(GzCoord norm, GzCoord color);
@@ -231,10 +231,12 @@ GzMatrix cubeMapCameraRotate =
 		status |= GzPushMatrix(m_pRender, cubeMapRotate);
 		//GzXformCamera(m_pRender->camera, cubeMapCameraRotate);
 	}
-	else
+	else if(finalRenderMode == GZ_RM_STEREO)
 	{
 		GzStereoInit(m_pRender);
 	}
+
+	//GzTest(m_pRender);
 
 	if(status) exit(GZ_FAILURE); 
 

@@ -731,6 +731,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		{textures[0][0], textures[0][1]}
 	};
 
+	/*
 	if(render->renderMode == GZ_RM_CEL)
 	{
 		GzIntensity blackRed = 0, blackGreen = 0, blackBlue = 0;
@@ -738,6 +739,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		GzDrawEdge(render, edge21, blackRed, blackGreen, blackBlue);
 		GzDrawEdge(render, edge20, blackRed, blackGreen, blackBlue);
 	}
+	*/
 
 	if(render->interp_mode == GZ_COLOR)
 	{
@@ -988,11 +990,7 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 				}
 				else if(render->interp_mode == GZ_NORMAL)
 				{
-					GzCoord currNormal = {0.0f};
-
-					currNormal[0] = currSpan.dataStart[0] * oneMinusRatio + currSpan.dataEnd[0] * currSpan.ratio;
-					currNormal[1] = currSpan.dataStart[1] * oneMinusRatio + currSpan.dataEnd[1] * currSpan.ratio;
-					currNormal[2] = currSpan.dataStart[2] * oneMinusRatio + currSpan.dataEnd[2] * currSpan.ratio;
+					GzCoord currNormal = {currSpan.dataStart[0] * oneMinusRatio + currSpan.dataEnd[0] * currSpan.ratio, currSpan.dataStart[1] * oneMinusRatio + currSpan.dataEnd[1] * currSpan.ratio, currSpan.dataStart[2] * oneMinusRatio + currSpan.dataEnd[2] * currSpan.ratio};
 					GzNormalizeVector(currNormal, currNormal);
 
 					if(render->tex_fun != 0 && render->renderMode != GZ_RM_CEL)
@@ -1003,15 +1001,18 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 
 					if(render->renderMode == GZ_RM_CUBE)
 					{
-						GzCoord currVertex = {0.0f};
-						currVertex[0] = currSpan.current[0];
-						currVertex[1] = leftEdge->current[1];
-						currVertex[2] = currSpan.current[1];
-
+						GzCoord currVertex = {currSpan.current[0], leftEdge->current[1], currSpan.current[1]};
 						GzGetCubeMapColor(render, currVertex, currNormal, currColor);
 					}
-					else if(render->renderMode == GZ_RM_CEL) GzCalculateColorCel(render, currNormal, currColor);
-					else GzCalculateColor(render, currNormal, currColor, false);
+					else if(render->renderMode == GZ_RM_CEL)
+					{
+						GzCoord currVertex = {currSpan.current[0], leftEdge->current[1], currSpan.current[1]};
+						GzCalculateColorCel(render, currVertex, currNormal, currColor);
+					}
+					else
+					{
+						GzCalculateColor(render, currNormal, currColor, false);
+					}
 					GzPutDisplay(render->display[ACTUALDISPLAY], (int) currSpan.current[0], (int) leftEdge->current[1], ctoi(currColor[0]), ctoi(currColor[1]), ctoi(currColor[2]), a, (GzDepth) currSpan.current[1]);
 				}
 				else
@@ -1472,7 +1473,7 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 	GzBackToWorldNormal(render, currNormal);
 
 	GzCoord cameraRay = {0.0f};
-	GzSubtractVector(currVertex, render->camera.position, cameraRay);
+	GzSubtractVector(render->camera.lookat, render->camera.position, cameraRay);
 
 	float NdotI = GzDotProduct(cameraRay, currNormal);
 	GzCoord TwoNtimesNdotI;
@@ -1510,14 +1511,13 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 		v = reflectedRay[2] / absY;
 		if(reflectedRay[1] < 0) //Bottom face
 		{
-			v = -v;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
 			GzGetCubeMapTexture(render, DOWN, u, v, color);
 		}
 		else //Top face
 		{
-			u = -u;
+			v = -v;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
 			GzGetCubeMapTexture(render, UP, u, v, color);
@@ -1526,16 +1526,16 @@ void GzGetCubeMapColor(GzRender *render, const GzCoord &vertex, const GzCoord &n
 	else //Z is largest
 	{
 		u = reflectedRay[0] / absZ;
-		v = reflectedRay[1] / absZ;
+		v = -reflectedRay[1] / absZ;
 		if(reflectedRay[2] < 0) //Front face
 		{
-			v = -v;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
 			GzGetCubeMapTexture(render, FRONT, u, v, color);
 		}
 		else //Back face
 		{
+			u = -u;
 			++u; u /= 2.0f;
 			++v; v /= 2.0f;
 			GzGetCubeMapTexture(render, BACK, u, v, color);
@@ -1625,16 +1625,22 @@ void GzXformCamera(GzCamera &camera, const GzMatrix &matrix)
 
 void GzBackToWorldVertices(GzRender *render, GzCoord &vertex)
 {
-	//T * Xwm * Xiw * Xpi * Xsp * v = vf
-	//T * Xwm * v = Xsp^-1 * Xpi^-1 * Xiw^-1 * vf
+	/*
+	How you got your vertex originally:
+	Xsp * Xpi * Xiw * Xwm * v = vf //Concat * model-space vertex = raster-space vertex
+	vf' = (vf.x / vf.w, vf.y / vf.w, vf.z / vf.w); //Perspective
+	How you get it back with vf':
+	Xwm * vf = Xiw^-1 * Xpi^-1 * Xsp^-1 * vf' //Inverted partial concat * raster-space vertex = world-space vertex
+	v = (vf.x / vf.w,  vf.y / vf.w, vf.z / vf.w); //Perspective again
+	*/
 
 	GzMatrix matrix = {0.0f}, concat = {0.0f};
-	copy(&render->Ximage[0][0][0], &render->Ximage[0][0][0] + 16, &concat[0][0]);
+	copy(&render->Ximage[2][0][0], &render->Ximage[2][0][0] + 16, &concat[0][0]);
 	GzInvertMatrix(concat);
 	copy(&render->Ximage[1][0][0], &render->Ximage[1][0][0] + 16, &matrix[0][0]);
 	GzInvertMatrix(matrix);
 	GzMatrixMultiplication(concat, matrix, concat);
-	copy(&render->Ximage[2][0][0], &render->Ximage[2][0][0] + 16, &matrix[0][0]);
+	copy(&render->Ximage[0][0][0], &render->Ximage[0][0][0] + 16, &matrix[0][0]);
 	GzInvertMatrix(matrix);
 	GzMatrixMultiplication(concat, matrix, concat);
 
@@ -1642,12 +1648,17 @@ void GzBackToWorldVertices(GzRender *render, GzCoord &vertex)
 	GzCoordToGzVector(vertex, vertexVec);
 	GzMatrixTimesVector(concat, vertexVec, vertexVec);
 	GzVectorToGzCoord(vertexVec, vertex);
+	GzMultiplyVector(vertex, 1.0f / vertexVec[3], vertex);
 }
 
 void GzBackToWorldNormal(GzRender *render, GzCoord &normal)
 {
-	//T * Xwm * Xiw * N = Nf
-	//T * Xwm * N = Xiw^-1 * Nf
+	/*
+	How you got your normal originally:
+	Xiw * Xwm * n = nf //Concat * model-space normal = image-space normal
+	How you get it back with nf:
+	Xwm * n = Xiw^-1 * nf //Inverted Xiw * image-space normal = world-space normal
+	*/
 	GzMatrix matrix = {0.0f};
 	copy(&render->Xnorm[2][0][0], &render->Xnorm[2][0][0] + 16, &matrix[0][0]);
 	GzInvertMatrix(matrix);
@@ -2423,11 +2434,26 @@ void GzCombineDisplays(GzRender *render)
 	}
 }
 
-void GzCalculateColorCel(const GzRender *render, const GzCoord &normal, GzColor &color)
+void GzCalculateColorCel(GzRender *render, const GzCoord &vertex, const GzCoord &normal, GzColor &color)
 {
-	GzColor specularColor = {0.0};
-	GzColor diffuseColor = {0.0};
-	GzColor ambientColor = {0.0};
+	/*
+	GzCoord currVertex = {0.0f}, currNormal = {0.0f};
+	copy(&vertex[0], &vertex[0] + 3, &currVertex[0]);
+	copy(&normal[0], &normal[0] + 3, &currNormal[0]);
+	GzBackToWorldVertices(render, currVertex);
+	GzBackToWorldNormal(render, currNormal);
+
+	float NdotV = GzDotProduct(currNormal, currVertex);
+	if(NdotV < 0.05f)
+	{
+		color[0] = color[1] = color[2] = 0.0f;
+		return;
+	}
+	*/
+
+	GzColor specularColor = {0.0f};
+	GzColor diffuseColor = {0.0f};
+	GzColor ambientColor = {0.0f};
 	const GzLight *oneLight = &render->lights[2];
 
 	//Specular
@@ -2436,7 +2462,8 @@ void GzCalculateColorCel(const GzRender *render, const GzCoord &normal, GzColor 
 	GzMultiplyVector(normal, 2 * NdotL, specularR);
 	GzSubtractVector(specularR, oneLight->direction, specularR);
 
-	GzCoord specularE = {0.0, 0.0, -1.0};
+	GzCoord specularE = {0.0f, 0.0f, -1.0f};
+	//GzSubtractVector(currVertex, render->camera.position, specularE);
 
 	float RdotE = GzDotProduct(specularR, specularE);
 
@@ -2733,4 +2760,62 @@ void GzDrawPixel(GzDisplay *display, int x, int y, GzIntensity red, GzIntensity 
 			if(z <= tZ) GzPutDisplay(display, i, j, red, green, blue, alpha, z);
 		}
 	}
+}
+
+void GzTest(GzRender *render)
+{
+	GzCoord tVertex = {0.01f, 2.0f, -5.32f};
+	GzCoord tNormal = {-1.0f, 2.45f, 6.2f};
+	GzVector triVec;
+
+	//Calculating Xwm/////////////
+	GzMatrix concatXwmV, tempMat;
+	copy(&(render->Ximage[5][0][0]), &(render->Ximage[5][0][0]) + 16, &(concatXwmV[0][0]));
+	copy(&(render->Ximage[4][0][0]), &(render->Ximage[4][0][0]) + 16, &(tempMat[0][0]));
+	GzMatrixMultiplication(tempMat, concatXwmV, concatXwmV);
+	copy(&(render->Ximage[3][0][0]), &(render->Ximage[3][0][0]) + 16, &(tempMat[0][0]));
+	GzMatrixMultiplication(tempMat, concatXwmV, concatXwmV);
+
+	GzCoord tWVertex = {0.0f};
+	GzCoordToGzVector(tVertex, triVec);
+	GzMatrixTimesVector(concatXwmV, triVec, triVec);
+	GzVectorToGzCoord(triVec, tWVertex);
+	//Check tWVertex/////////////////////////////////////////
+
+	GzMatrix concatXwmN;
+	copy(&(render->Xnorm[5][0][0]), &(render->Xnorm[5][0][0]) + 16, &(concatXwmN[0][0]));
+	copy(&(render->Xnorm[4][0][0]), &(render->Xnorm[4][0][0]) + 16, &(tempMat[0][0]));
+	GzMatrixMultiplication(tempMat, concatXwmN, concatXwmN);
+	copy(&(render->Xnorm[3][0][0]), &(render->Xnorm[3][0][0]) + 16, &(tempMat[0][0]));
+	GzMatrixMultiplication(tempMat, concatXwmN, concatXwmN);
+
+	GzCoord tWNormal = {0.0f};
+	GzCoordToGzVector(tNormal, triVec);
+	GzMatrixTimesVector(concatXwmN, triVec, triVec);
+	GzVectorToGzCoord(triVec, tWNormal);
+	//Check tWNormal/////////////////////////////////////////
+	//////////////////////////////
+
+	GzMatrix concat;
+	GzConcatMatrix(render, concat);
+
+	GzCoordToGzVector(tVertex, triVec);
+	GzMatrixTimesVector(concat, triVec, triVec);
+	GzVectorToGzCoord(triVec, tVertex);
+	GzMultiplyVector(tVertex, 1.0f / triVec[3], tVertex); //Perspective
+
+	GzBackToWorldVertices(render, tVertex);
+	//Check tVertex//////////////////////////////////////////
+
+	GzConcatMatrixNormal(render, concat);
+
+	GzVector normVec;
+	GzCoordToGzVector(tNormal, normVec);
+	GzMatrixTimesVector(concat, normVec, normVec);
+	GzVectorToGzCoord(normVec, tNormal);
+
+	GzBackToWorldNormal(render, tNormal);
+	//Check tNormal//////////////////////////////////////////
+
+	printf("\n");
 }
