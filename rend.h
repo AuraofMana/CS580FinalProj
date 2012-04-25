@@ -196,4 +196,3 @@ void GzCombineDisplays(GzRender *render);
 void GzCalculateColorCel(GzRender *render, const GzCoord &vertex, const GzCoord &normal, GzColor &color);
 void GzDrawEdge(GzRender *render, GzEdge e, GzIntensity red, GzIntensity green, GzIntensity blue);
 void GzDrawPixel(GzDisplay *display, int x, int y, GzIntensity red, GzIntensity green, GzIntensity blue, GzIntensity alpha, GzDepth z);
-void GzTest(GzRender *render);

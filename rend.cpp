@@ -731,7 +731,6 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		{textures[0][0], textures[0][1]}
 	};
 
-	/*
 	if(render->renderMode == GZ_RM_CEL)
 	{
 		GzIntensity blackRed = 0, blackGreen = 0, blackBlue = 0;
@@ -739,7 +738,6 @@ int GzPutTriangle(GzRender	*render, int numParts, GzToken *nameList,
 		GzDrawEdge(render, edge21, blackRed, blackGreen, blackBlue);
 		GzDrawEdge(render, edge20, blackRed, blackGreen, blackBlue);
 	}
-	*/
 
 	if(render->interp_mode == GZ_COLOR)
 	{
@@ -1403,37 +1401,37 @@ void GzLoadCubeMaps(GzRender *render)
 		case 0:
 			{
 				image = &(render->cmap.posX);
-				filePath += "2posx.ppm";
+				filePath += "posx.ppm";
 				break;
 			}
 		case 1:
 			{
 				image = &(render->cmap.negX);
-				filePath += "2negx.ppm";
+				filePath += "negx.ppm";
 				break;
 			}
 		case 2:
 			{
 				image = &(render->cmap.posY);
-				filePath += "2posy.ppm";
+				filePath += "posy.ppm";
 				break;
 			}
 		case 3:
 			{
 				image = &(render->cmap.negY);
-				filePath += "2negy.ppm";
+				filePath += "negy.ppm";
 				break;
 			}
 		case 4:
 			{
 				image = &(render->cmap.posZ);
-				filePath += "2negz.ppm";
+				filePath += "negz.ppm";
 				break;
 			}
 		case 5:
 			{
 				image = &(render->cmap.negZ);
-				filePath += "2posz.ppm";
+				filePath += "posz.ppm";
 				break;
 			}
 		}
@@ -2436,21 +2434,6 @@ void GzCombineDisplays(GzRender *render)
 
 void GzCalculateColorCel(GzRender *render, const GzCoord &vertex, const GzCoord &normal, GzColor &color)
 {
-	/*
-	GzCoord currVertex = {0.0f}, currNormal = {0.0f};
-	copy(&vertex[0], &vertex[0] + 3, &currVertex[0]);
-	copy(&normal[0], &normal[0] + 3, &currNormal[0]);
-	GzBackToWorldVertices(render, currVertex);
-	GzBackToWorldNormal(render, currNormal);
-
-	float NdotV = GzDotProduct(currNormal, currVertex);
-	if(NdotV < 0.05f)
-	{
-		color[0] = color[1] = color[2] = 0.0f;
-		return;
-	}
-	*/
-
 	GzColor specularColor = {0.0f};
 	GzColor diffuseColor = {0.0f};
 	GzColor ambientColor = {0.0f};
@@ -2760,62 +2743,4 @@ void GzDrawPixel(GzDisplay *display, int x, int y, GzIntensity red, GzIntensity 
 			if(z <= tZ) GzPutDisplay(display, i, j, red, green, blue, alpha, z);
 		}
 	}
-}
-
-void GzTest(GzRender *render)
-{
-	GzCoord tVertex = {0.01f, 2.0f, -5.32f};
-	GzCoord tNormal = {-1.0f, 2.45f, 6.2f};
-	GzVector triVec;
-
-	//Calculating Xwm/////////////
-	GzMatrix concatXwmV, tempMat;
-	copy(&(render->Ximage[5][0][0]), &(render->Ximage[5][0][0]) + 16, &(concatXwmV[0][0]));
-	copy(&(render->Ximage[4][0][0]), &(render->Ximage[4][0][0]) + 16, &(tempMat[0][0]));
-	GzMatrixMultiplication(tempMat, concatXwmV, concatXwmV);
-	copy(&(render->Ximage[3][0][0]), &(render->Ximage[3][0][0]) + 16, &(tempMat[0][0]));
-	GzMatrixMultiplication(tempMat, concatXwmV, concatXwmV);
-
-	GzCoord tWVertex = {0.0f};
-	GzCoordToGzVector(tVertex, triVec);
-	GzMatrixTimesVector(concatXwmV, triVec, triVec);
-	GzVectorToGzCoord(triVec, tWVertex);
-	//Check tWVertex/////////////////////////////////////////
-
-	GzMatrix concatXwmN;
-	copy(&(render->Xnorm[5][0][0]), &(render->Xnorm[5][0][0]) + 16, &(concatXwmN[0][0]));
-	copy(&(render->Xnorm[4][0][0]), &(render->Xnorm[4][0][0]) + 16, &(tempMat[0][0]));
-	GzMatrixMultiplication(tempMat, concatXwmN, concatXwmN);
-	copy(&(render->Xnorm[3][0][0]), &(render->Xnorm[3][0][0]) + 16, &(tempMat[0][0]));
-	GzMatrixMultiplication(tempMat, concatXwmN, concatXwmN);
-
-	GzCoord tWNormal = {0.0f};
-	GzCoordToGzVector(tNormal, triVec);
-	GzMatrixTimesVector(concatXwmN, triVec, triVec);
-	GzVectorToGzCoord(triVec, tWNormal);
-	//Check tWNormal/////////////////////////////////////////
-	//////////////////////////////
-
-	GzMatrix concat;
-	GzConcatMatrix(render, concat);
-
-	GzCoordToGzVector(tVertex, triVec);
-	GzMatrixTimesVector(concat, triVec, triVec);
-	GzVectorToGzCoord(triVec, tVertex);
-	GzMultiplyVector(tVertex, 1.0f / triVec[3], tVertex); //Perspective
-
-	GzBackToWorldVertices(render, tVertex);
-	//Check tVertex//////////////////////////////////////////
-
-	GzConcatMatrixNormal(render, concat);
-
-	GzVector normVec;
-	GzCoordToGzVector(tNormal, normVec);
-	GzMatrixTimesVector(concat, normVec, normVec);
-	GzVectorToGzCoord(normVec, tNormal);
-
-	GzBackToWorldNormal(render, tNormal);
-	//Check tNormal//////////////////////////////////////////
-
-	printf("\n");
 }
