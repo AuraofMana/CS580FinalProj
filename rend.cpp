@@ -1801,10 +1801,10 @@ void GzStereoInit(GzRender *render)
 	//Clear frame buffers
 	GzClearFrameBuffers(render);
 
-	render->leftCamera.position[0] -= 0.8;
-	render->leftCamera.lookat[0] -= 0.1;
-	render->rightCamera.position[0] += 0.8;
-	render->rightCamera.lookat[0] += 0.1;
+	render->leftCamera.position[0] -= 0.13;
+	render->leftCamera.lookat[0] -= 0.13;
+	render->rightCamera.position[0] += 0.13;
+	render->rightCamera.lookat[0] += 0.13;
 
 	//Load the Xiw matrix for both left and right camera based on the new position
 	GzLoadXiw(render->leftCamera);
